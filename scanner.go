@@ -44,6 +44,7 @@ package ego
 import (
   "fmt"
   "math"
+  "strings"
   "strconv"
   "unicode"
   "unicode/utf8"
@@ -90,6 +91,7 @@ const (
   tokenEOF
   tokenVerbatim
   tokenMeta
+  tokenAtem
   
   tokenString
   tokenNumber
@@ -98,6 +100,10 @@ const (
   tokenIf
   tokenElse
   tokenFor
+  
+  tokenTrue
+  tokenFalse
+  tokenNil
   
 )
 
@@ -114,6 +120,8 @@ func (t tokenType) String() string {
       return "Verbatim"
     case tokenMeta:
       return "@"
+    case tokenAtem:
+      return "~"
     case tokenString:
       return "String"
     case tokenNumber:
@@ -126,6 +134,12 @@ func (t tokenType) String() string {
       return "else"
     case tokenFor:
       return "for"
+    case tokenTrue:
+      return "true"
+    case tokenFalse:
+      return "false"
+    case tokenNil:
+      return "nil"
     default:
       return fmt.Sprintf("%v", rune(t))
   }
@@ -186,9 +200,9 @@ type scannerError struct {
  */
 func (s *scannerError) Error() string {
   if s.cause != nil {
-    return fmt.Sprintf("%s: %v", s.message, s.cause)
+    return fmt.Sprintf("@[%d+%d] %s: %v", s.span.offset, s.span.length, s.message, s.cause)
   }else{
-    return s.message
+    return fmt.Sprintf("@[%d+%d] %s", s.span.offset, s.span.length, s.message)
   }
 }
 
@@ -267,10 +281,22 @@ func (s *scanner) next() rune {
  * Match ahead
  */
 func (s *scanner) match(text string) bool {
-  i := s.index
-  for n := 0; n < len(text); n++ {
+  return s.matchAt(s.index, text)
+}
+
+/**
+ * Match ahead
+ */
+func (s *scanner) matchAt(index int, text string) bool {
+  i := index
+  
+  if i < 0 {
+    return false
+  }
+  
+  for n := 0; n < len(text); {
     
-    if s.index >= len(s.text) {
+    if i >= len(s.text) {
       return false
     }
     
@@ -284,7 +310,34 @@ func (s *scanner) match(text string) bool {
     }
     
   }
+  
   return true
+}
+
+/**
+ * Find the next occurance of any character in the specified string
+ */
+func (s *scanner) findFrom(index int, any string, invert bool) int {
+  i := index
+  if !invert {
+    return strings.IndexAny(s.text[i:], any)
+  }else{
+    for {
+      
+      if i >= len(s.text) {
+        return -1
+      }
+      
+      r, w := utf8.DecodeRuneInString(s.text[i:])
+      
+      if !strings.ContainsRune(any, r) {
+        return i
+      }else{
+        i += w
+      }
+      
+    }
+  }
 }
 
 /**
@@ -323,15 +376,30 @@ func (s *scanner) skipAndIgnore() {
 func startAction(s *scanner) scannerAction {
   
   for {
-    if s.index < len(s.text) && s.text[s.index] == meta {
-      if s.index > s.start {
-        s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
+    
+    if s.index < len(s.text) {
+      switch s.text[s.index] {
+        case meta:
+          if s.index > s.start {
+            s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
+          }
+          return preludeAction
+        case '}':
+          if s.index > s.start {
+            s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
+          }
+          if from := s.findFrom(s.index + 1, " \n\r\t\v", true); s.matchAt(from, "else") {
+            return metaAction
+          }else{
+            return finalizeAction
+          }
       }
-      return preludeAction
     }
+    
     if s.next() == eof {
       break
     }
+    
   }
   
   // emit the last verbatim block, if we have one
@@ -356,6 +424,16 @@ func preludeAction(s *scanner) scannerAction {
 }
 
 /**
+ * Finalize action. This closes a meta expression or control structure.
+ */
+func finalizeAction(s *scanner) scannerAction {
+  s.emit(token{span{s.text, s.index, 1}, tokenAtem, "~"})
+  s.next()  // skip the '}' delimiter
+  s.depth-- // decrement the meta depth
+  return startAction
+}
+
+/**
  * Meta action.
  */
 func metaAction(s *scanner) scannerAction {
@@ -363,6 +441,7 @@ func metaAction(s *scanner) scannerAction {
   for {
     
     if s.index < len(s.text) && s.text[s.index] == '{' {
+      fmt.Println(string(s.next())) // consume the '{'
       // emit something here?
       s.depth++
       return startAction
@@ -419,17 +498,30 @@ func numberAction(s *scanner) scannerAction {
  * Identifier
  */
 func identifierAction(s *scanner) scannerAction {
-  if v, err := s.scanIdentifier(); err != nil {
+  
+  v, err := s.scanIdentifier()
+  if err != nil {
     s.error(s.errorf(span{s.text, s.index, 1}, err, "Invalid identifier"))
-  }else if v == "if" {
-    s.emit(token{span{s.text, s.start, s.index - s.start}, tokenIf, v})
-  }else if v == "else" {
-    s.emit(token{span{s.text, s.start, s.index - s.start}, tokenElse, v})
-  }else if v == "for" {
-    s.emit(token{span{s.text, s.start, s.index - s.start}, tokenFor, v})
-  }else{
-    s.emit(token{span{s.text, s.start, s.index - s.start}, tokenIdentifier, v})
   }
+  
+  t := span{s.text, s.start, s.index - s.start}
+  switch v {
+    case "if":
+      s.emit(token{t, tokenIf, v})
+    case "else":
+      s.emit(token{t, tokenElse, v})
+    case "for":
+      s.emit(token{t, tokenFor, v})
+    case "true":
+      s.emit(token{t, tokenTrue, v})
+    case "false":
+      s.emit(token{t, tokenFalse, v})
+    case "nil":
+      s.emit(token{t, tokenNil, v})
+    default:
+      s.emit(token{t, tokenIdentifier, v})
+  }
+  
   return metaAction
 }
 

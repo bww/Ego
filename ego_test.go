@@ -37,11 +37,28 @@ import (
 
 func TestThis(t *testing.T) {
   
-  source := `
+  /*source := `
 Hi @"This \u2022 is\n\t\"quoted\"."
   This, that, if else for
   Ok. Yeah.
+`*/
+  source := `
+Hi.
+
+@if true {
+  This, that, if else for
+  Ok. Yeah.
+} ... more.
+  
+@if false {
+  Nope...
+} else {
+  This text instead!
+}
+
+Foo.
 `
+  
   fmt.Println(source)
   
   c := make(chan token)
