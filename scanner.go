@@ -168,9 +168,9 @@ type token struct {
 func (t token) String() string {
   switch t.which {
     case tokenError:
-      return fmt.Sprintf("{%v %v %v}", t.which, t.span, t.value)
+      return fmt.Sprintf("<%v %v %v>", t.which, t.span, t.value)
     default:
-      return fmt.Sprintf("{%v %v}", t.which, t.span)
+      return fmt.Sprintf("<%v %v>", t.which, t.span)
   }
 }
 
@@ -215,7 +215,7 @@ type scannerAction func(*scanner) scannerAction
  * Create a scanner
  */
 func newScanner(text string, tokens chan token) *scanner {
-  return &scanner{text, 0, 0, 0, 0, tokens}
+  return &scanner{text, 0, 0, -1, 0, tokens}
 }
 
 /**
@@ -381,12 +381,12 @@ func startAction(s *scanner) scannerAction {
       switch s.text[s.index] {
         case meta:
           if s.index > s.start {
-            s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
+            s.emit(token{span{s.text, s.start+1, s.index - s.start - 1}, tokenVerbatim, s.text[s.start+1:s.index]})
           }
           return preludeAction
         case '}':
           if s.index > s.start {
-            s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
+            s.emit(token{span{s.text, s.start+1, s.index - s.start - 1}, tokenVerbatim, s.text[s.start+1:s.index]})
           }
           if from := s.findFrom(s.index + 1, " \n\r\t\v", true); s.matchAt(from, "else") {
             return metaAction
@@ -439,20 +439,16 @@ func finalizeAction(s *scanner) scannerAction {
 func metaAction(s *scanner) scannerAction {
   
   for {
-    
-    if s.index < len(s.text) && s.text[s.index] == '{' {
-      fmt.Println(string(s.next())) // consume the '{'
-      // emit something here?
-      s.depth++
-      return startAction
-    }
-    
     switch r := s.next(); {
       case r == eof:
         return s.error(s.errorf(span{s.text, s.index, 1}, nil, "Unexpected end-of-input"))
       case unicode.IsSpace(r):
         s.ignore()
+      case r == '{': // open verbatim
+        s.depth++
+        return startAction
       case r == '"':
+        // consume the open '"'
         return stringAction
       case r >= '0' && r <= '9':
         s.backup()
@@ -461,7 +457,6 @@ func metaAction(s *scanner) scannerAction {
         s.backup()
         return identifierAction
     }
-    
   }
   
   return startAction
