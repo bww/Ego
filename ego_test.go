@@ -45,7 +45,9 @@ Hi @"This \u2022 is\n\t\"quoted\"."
   source := `
 Hi.
 
-@if true {
+Why doesn't this break?!
+\@
+@@if true {
   This, that, if else for
   Ok. Yeah.
 } ... more.
@@ -54,6 +56,10 @@ Hi.
   Nope...
 } else {
   This text instead!
+}
+
+@for 123 "String" {
+  Do this, then... \{ hmm \}
 }
 
 Foo.

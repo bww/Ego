@@ -456,6 +456,8 @@ func metaAction(s *scanner) scannerAction {
       case r == '_' || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z'):
         s.backup()
         return identifierAction
+      default:
+        return s.error(s.errorf(span{s.text, s.index, 1}, nil, "Syntax error"))
     }
   }
   
