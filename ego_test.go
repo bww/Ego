@@ -37,8 +37,15 @@ import (
 
 func TestThis(t *testing.T) {
   
+  source := `
+Hi @"This \u2022 is\n\t\"quoted\"."
+  This, that, if else for
+  Ok. Yeah.
+`
+  fmt.Println(source)
+  
   c := make(chan token)
-  s := newScanner("Hi @\"This \u2022 is\\n\\t\\\"quoted\\\".\" Ok. Yeah.", c)
+  s := newScanner(source, c)
   go s.scan()
   
   for {

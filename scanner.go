@@ -63,8 +63,18 @@ type span struct {
  */
 func (s span) String() string {
   max := float64(len(s.text) - 1)
-  return s.text[int(math.Max(0, math.Min(max, float64(s.offset)))):int(math.Min(max, float64(s.offset+s.length)))]
+  return strconv.Quote(s.text[int(math.Max(0, math.Min(max, float64(s.offset)))):int(math.Min(max, float64(s.offset+s.length)))])
 }
+
+/**
+ * Numeric type
+ */
+type numericType int
+
+const (
+  numericInteger numericType = iota
+  numericFloat
+)
 
 /**
  * Token type
@@ -82,6 +92,12 @@ const (
   tokenMeta
   
   tokenString
+  tokenNumber
+  tokenIdentifier
+  
+  tokenIf
+  tokenElse
+  tokenFor
   
 )
 
@@ -98,6 +114,18 @@ func (t tokenType) String() string {
       return "Verbatim"
     case tokenMeta:
       return "@"
+    case tokenString:
+      return "String"
+    case tokenNumber:
+      return "Number"
+    case tokenIdentifier:
+      return "Ident"
+    case tokenIf:
+      return "if"
+    case tokenElse:
+      return "else"
+    case tokenFor:
+      return "for"
     default:
       return fmt.Sprintf("%v", rune(t))
   }
@@ -118,6 +146,18 @@ type token struct {
   span      span
   which     tokenType
   value     interface{}
+}
+
+/**
+ * Stringer
+ */
+func (t token) String() string {
+  switch t.which {
+    case tokenError:
+      return fmt.Sprintf("{%v %v %v}", t.which, t.span, t.value)
+    default:
+      return fmt.Sprintf("{%v %v}", t.which, t.span)
+  }
 }
 
 /**
@@ -192,9 +232,18 @@ func (s *scanner) emit(t token) {
 /**
  * Emit an error and return a nil action
  */
-func (s *scanner) err(err *scannerError) scannerAction {
-  s.tokens <- token{err.span, tokenError, err.span.String()}
+func (s *scanner) error(err *scannerError) scannerAction {
+  s.tokens <- token{err.span, tokenError, err}
   return nil
+}
+
+/**
+ * Obtain the next rune from input without consuming it
+ */
+func (s *scanner) peek() rune {
+  r := s.next()
+  s.backup()
+  return r
 }
 
 /**
@@ -215,6 +264,30 @@ func (s *scanner) next() rune {
 }
 
 /**
+ * Match ahead
+ */
+func (s *scanner) match(text string) bool {
+  i := s.index
+  for n := 0; n < len(text); n++ {
+    
+    if s.index >= len(s.text) {
+      return false
+    }
+    
+    r, w := utf8.DecodeRuneInString(s.text[i:])
+    i += w
+    c, z := utf8.DecodeRuneInString(text[n:])
+    n += z
+    
+    if r != c {
+      return false
+    }
+    
+  }
+  return true
+}
+
+/**
  * Shuffle the token start to the current index
  */
 func (s *scanner) ignore() {
@@ -227,6 +300,21 @@ func (s *scanner) ignore() {
  */
 func (s *scanner) backup() {
   s.index -= s.width
+}
+
+/**
+ * Skip past a rune that was previously peeked
+ */
+func (s *scanner) skip() {
+  s.index += s.width
+}
+
+/**
+ * Skip past a rune that was previously peeked and ignore it
+ */
+func (s *scanner) skipAndIgnore() {
+  s.skip()
+  s.ignore()
 }
 
 /**
@@ -282,28 +370,20 @@ func metaAction(s *scanner) scannerAction {
     
     switch r := s.next(); {
       case r == eof:
-        return s.err(s.errorf(span{s.text, s.index, 1}, nil, "Unexpected end-of-input"))
+        return s.error(s.errorf(span{s.text, s.index, 1}, nil, "Unexpected end-of-input"))
       case unicode.IsSpace(r):
         s.ignore()
       case r == '"':
-        return quotedStringAction
-      case r == '"':
-        return quotedStringAction
+        return stringAction
+      case r >= '0' && r <= '9':
+        s.backup()
+        return numberAction
+      case r == '_' || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z'):
+        s.backup()
+        return identifierAction
     }
     
   }
-  
-  /*
-    switch r := l.next(); {
-    case r == eof || r == '\n':
-        return l.errorf("unclosed action")
-    case isSpace(r):
-        l.ignore()
-    case r == '|':
-  
-  s.emit(token{span{s.text, s.index, 1}, tokenMeta, "@"})
-  s.next() // skip the '@' delimiter
-  */
   
   return startAction
 }
@@ -311,24 +391,57 @@ func metaAction(s *scanner) scannerAction {
 /**
  * Quoted string
  */
-func quotedStringAction(s *scanner) scannerAction {
-  if v, err := s.scanQuotedString('"', '\\'); err != nil {
-    fmt.Println(err)
+func stringAction(s *scanner) scannerAction {
+  if v, err := s.scanString('"', '\\'); err != nil {
+    s.error(s.errorf(span{s.text, s.index, 1}, err, "Invalid string"))
   }else{
     s.emit(token{span{s.text, s.start, s.index - s.start}, tokenString, v})
   }
   return metaAction
 }
 
+/**
+ * Number string
+ */
+func numberAction(s *scanner) scannerAction {
+  /*
+  if v, err := s.scanNumber(); err != nil {
+    fmt.Println("EMIT AN ERROR TOKEN HERE", err)
+  }else{
+    s.emit(token{span{s.text, s.start, s.index - s.start}, tokenNumber, v})
+  }
+  */
+  s.next()
+  return metaAction
+}
+
+/**
+ * Identifier
+ */
+func identifierAction(s *scanner) scannerAction {
+  if v, err := s.scanIdentifier(); err != nil {
+    s.error(s.errorf(span{s.text, s.index, 1}, err, "Invalid identifier"))
+  }else if v == "if" {
+    s.emit(token{span{s.text, s.start, s.index - s.start}, tokenIf, v})
+  }else if v == "else" {
+    s.emit(token{span{s.text, s.start, s.index - s.start}, tokenElse, v})
+  }else if v == "for" {
+    s.emit(token{span{s.text, s.start, s.index - s.start}, tokenFor, v})
+  }else{
+    s.emit(token{span{s.text, s.start, s.index - s.start}, tokenIdentifier, v})
+  }
+  return metaAction
+}
+
 /***
- ***  Scanning primitives
+ ***  SCANNING PRIMITIVES
  ***/
 
 /**
  * Scan a delimited token with escape sequences. The opening delimiter is
  * expected to have already been consumed.
  */
-func (s *scanner) scanQuotedString(quote, escape rune) (string, error) {
+func (s *scanner) scanString(quote, escape rune) (string, error) {
   var unquoted string
   
   for {
@@ -338,7 +451,6 @@ func (s *scanner) scanQuotedString(quote, escape rune) (string, error) {
         return "", s.errorf(span{s.text, s.start, s.index - s.start}, nil, "Unexpected end-of-input")
         
       case r == escape:
-        s.backup() // backup to the escape
         if e, err := s.scanEscape(quote, escape); err != nil {
           return "", s.errorf(span{s.text, s.start, s.index - s.start}, err, "Invalid escape sequence")
         }else{
@@ -365,6 +477,7 @@ func (s *scanner) scanIdentifier() (string, error) {
 	for r := s.next(); r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r); {
 		r = s.next()
 	}
+	s.backup() // unget the last character
 	return s.text[start:s.index], nil
 }
 
@@ -401,7 +514,7 @@ func (s *scanner) scanDigits(base, n int) (string, error) {
 	if n > 0 {
 		return "", s.errorf(span{s.text, start, s.index - start}, nil, "Not enough digits")
 	}else{
-	  return s.text[start:s.index], nil
+	  return s.text[start:s.index-1], nil
 	}
 }
 
@@ -432,7 +545,6 @@ func (s *scanner) scanRune(base, n int) (rune, error) {
  */
 func (s *scanner) scanEscape(quote, esc rune) (rune, error) {
   start := s.index
-  s.next() // skip the '\'
   r := s.next()
 	switch r {
     case 'a':
@@ -465,7 +577,6 @@ func (s *scanner) scanEscape(quote, esc rune) (rune, error) {
 }
 
 /*
-
 func (s *scanner) scanMantissa(ch rune) rune {
 	for isDecimal(ch) {
 		ch = s.next()
@@ -491,7 +602,9 @@ func (s *scanner) scanExponent(ch rune) rune {
 	return ch
 }
 
-func (s *scanner) scanNumber(ch rune) (rune, rune) {
+func (s *scanner) scanNumber() (float64, numericType, error) {
+  start := s.index
+  ch := s.next()
 	// isDecimal(ch)
 	if ch == '0' {
 		// int or float
@@ -505,7 +618,7 @@ func (s *scanner) scanNumber(ch rune) (rune, rune) {
 				hasMantissa = true
 			}
 			if !hasMantissa {
-				s.error("illegal hexadecimal number")
+				return 0, 0, s.errorf(span{s.text, start, s.index - start}, nil, "illegal hexadecimal number")
 			}
 		} else {
 			// octal int or float
@@ -520,11 +633,11 @@ func (s *scanner) scanNumber(ch rune) (rune, rune) {
 				// float
 				ch = s.scanFraction(ch)
 				ch = s.scanExponent(ch)
-				return Float, ch
+				return numericFloat, ch
 			}
 			// octal int
 			if has8or9 {
-				s.error("illegal octal number")
+				s.errorf(span{s.text, start, s.index - start}, nil, "illegal octal number")
 			}
 		}
 		return Int, ch
@@ -535,9 +648,9 @@ func (s *scanner) scanNumber(ch rune) (rune, rune) {
 		// float
 		ch = s.scanFraction(ch)
 		ch = s.scanExponent(ch)
-		return Float, ch
+		return numericFloat, ch
 	}
-	return Int, ch
+	return numericInteger, ch
 }
 
 func (s *scanner) scanString(quote rune) (n int) {
