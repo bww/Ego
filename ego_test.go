@@ -1,6 +1,6 @@
 // 
 // Copyright (c) 2014 Brian William Wolter, All rights reserved.
-// Go Framer
+// Ego - an embedded Go parser / compiler
 // 
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
@@ -38,7 +38,7 @@ import (
 func TestThis(t *testing.T) {
   
   c := make(chan token)
-  s := newScanner("Hi @meta Ok.", c)
+  s := newScanner("Hi @\"This is\\n\\t\\\"quoted\\\".\" Ok. Yeah.", c)
   
   go s.scan()
   

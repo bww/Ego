@@ -1,6 +1,6 @@
 // 
 // Copyright (c) 2014 Brian William Wolter, All rights reserved.
-// Go Framer
+// Ego - an embedded Go parser / compiler
 // 
 // Redistribution and use in source and binary forms, with or without modification,
 // are permitted provided that the following conditions are met:
@@ -27,11 +27,25 @@
 // OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
+// --
+// 
+// This scanner incorporates routines from the Go package text/scanner:
+// http://golang.org/src/pkg/text/scanner/scanner.go
+// 
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+// 
+// http://golang.org/LICENSE
+// 
 
 package ego
 
 import (
   "fmt"
+  "math"
+  "strconv"
+  "unicode"
   "unicode/utf8"
 )
 
@@ -42,6 +56,14 @@ type span struct {
   text      string
   offset    int
   length    int
+}
+
+/**
+ * Span excerpt
+ */
+func (s span) String() string {
+  max := float64(len(s.text) - 1)
+  return s.text[int(math.Max(0, math.Min(max, float64(s.offset)))):int(math.Min(max, float64(s.offset+s.length)))]
 }
 
 /**
@@ -102,7 +124,28 @@ type scanner struct {
   index     int
   width     int // current rune width
   start     int // token start position
+  depth     int // meta depth
   tokens    chan token
+}
+
+/**
+ * A scanner error
+ */
+type scannerError struct {
+  message   string
+  span      span
+  cause     error
+}
+
+/**
+ * Error
+ */
+func (s *scannerError) Error() string {
+  if s.cause != nil {
+    return fmt.Sprintf("%s: %v", s.message, s.cause)
+  }else{
+    return s.message
+  }
 }
 
 /**
@@ -114,7 +157,14 @@ type scannerAction func(*scanner) scannerAction
  * Create a scanner
  */
 func newScanner(text string, tokens chan token) *scanner {
-  return &scanner{text, 0, 0, 0, tokens}
+  return &scanner{text, 0, 0, 0, 0, tokens}
+}
+
+/**
+ * Create an error
+ */
+func (s *scanner) errorf(where span, cause error, format string, args ...interface{}) *scannerError {
+  return &scannerError{fmt.Sprintf(format, args...), where, cause}
 }
 
 /**
@@ -133,6 +183,14 @@ func (s *scanner) scan() {
 func (s *scanner) emit(t token) {
   s.tokens <- t
   s.start = t.span.offset + t.span.length
+}
+
+/**
+ * Emit an error and return a nil action
+ */
+func (s *scanner) err(err *scannerError) scannerAction {
+  s.tokens <- token{err.span, tokenError, err.span.String()}
+  return nil
 }
 
 /**
@@ -213,14 +271,25 @@ func metaAction(s *scanner) scannerAction {
   for {
     
     if s.index < len(s.text) && s.text[s.index] == '{' {
-      return innerAction
+      // emit something here?
+      s.depth++
+      return startAction
     }
     
-    s.next() // advance
+    switch r := s.next(); {
+      case r == eof:
+        return s.err(s.errorf(span{s.text, s.index, 1}, nil, "Unexpected end-of-input"))
+      case unicode.IsSpace(r):
+        s.ignore()
+      case r == '"':
+        return quotedStringAction
+      case r == '"':
+        return quotedStringAction
+    }
     
   }
   
-    /*
+  /*
     switch r := l.next(); {
     case r == eof || r == '\n':
         return l.errorf("unclosed action")
@@ -236,9 +305,333 @@ func metaAction(s *scanner) scannerAction {
 }
 
 /**
- * Meta interior action.
+ * Quoted string
  */
-func innerAction(s *scanner) scannerAction {
-  return startAction
+func quotedStringAction(s *scanner) scannerAction {
+  if v, err := s.scanDelimitedToken('"', '\\', "tvrna"); err != nil {
+    fmt.Println(err)
+  }else{
+    fmt.Println(v)
+  }
+  return nil
 }
 
+/***
+ ***  Scanning primitives
+ ***/
+
+/**
+ * Scan a delimited token with escape sequences. The opening delimiter is
+ * expected to have already been consumed.
+ */
+func (s *scanner) scanDelimitedToken(delim, escape rune, echars string) (string, error) {
+  var unquoted string
+  
+  for {
+    switch r := s.next(); {
+      
+      case r == eof:
+        return "", s.errorf(span{s.text, s.start, s.index - s.start}, nil, "Unexpected end-of-input")
+        
+      case r == escape:
+        s.backup() // backup to the escape
+        if e, err := s.scanEscape(delim, escape); err != nil {
+          return "", s.errorf(span{s.text, s.start, s.index - s.start}, err, "Invalid escape sequence")
+        }else{
+          unquoted += string(e)
+        }
+        
+      case r == delim:
+        return unquoted, nil
+        
+      default:
+        unquoted += string(r)
+        
+    }
+  }
+  
+  return "", s.errorf(span{s.text, s.start, s.index - s.start}, nil, "Unexpected end-of-input")
+}
+
+/**
+ * Scan an identifier
+ */
+func (s *scanner) scanIdentifier() (string, error) {
+  start := s.index
+	for r := s.next(); r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r); {
+		r = s.next()
+	}
+	return s.text[start:s.index], nil
+}
+
+/**
+ * Scan a digit value
+ */
+func digitValue(ch rune) int {
+	switch {
+    case '0' <= ch && ch <= '9':
+      return int(ch - '0')
+    case 'a' <= ch && ch <= 'f':
+      return int(ch - 'a' + 10)
+    case 'A' <= ch && ch <= 'F':
+      return int(ch - 'A' + 10)
+	}
+	return 16 // too big
+}
+
+/**
+ * Scan digits
+ */
+func (s *scanner) scanDigits(base, n int) (string, error) {
+  start := s.index
+	for r := s.next(); n > 0 && digitValue(r) < base; {
+		r = s.next(); n--
+	}
+	if n > 0 {
+		return "", s.errorf(span{s.text, start, s.index - start}, nil, "Not enough digits")
+	}else{
+	  return s.text[start:s.index], nil
+	}
+}
+
+/**
+ * Scan digits
+ */
+func (s *scanner) scanDecimal(base, n int) (int64, error) {
+  if d, err := s.scanDigits(base, n); err != nil {
+    return 0, err
+  }else{
+    return strconv.ParseInt(d, base, 64)
+  }
+}
+
+/**
+ * Scan digits as a rune
+ */
+func (s *scanner) scanRune(base, n int) (rune, error) {
+  if d, err := s.scanDecimal(base, n); err != nil {
+    return 0, err
+  }else{
+    return rune(d), nil
+  }
+}
+
+/**
+ * Scan an escape
+ */
+func (s *scanner) scanEscape(quote, esc rune) (rune, error) {
+  start := s.index
+  s.next() // skip the '\'
+  r := s.next()
+	switch r {
+    case 'a':
+      return '\a', nil
+    case 'b':
+      return '\b', nil
+    case 'f':
+      return '\f', nil
+    case 'n':
+      return '\n', nil
+    case 'r':
+      return '\r', nil
+    case 't':
+      return '\t', nil
+    case 'v':
+      return '\v', nil
+    case esc, quote:
+      return r, nil
+    case '0', '1', '2', '3', '4', '5', '6', '7':
+      return s.scanRune(8, 3)
+    case 'x':
+      return s.scanRune(16, 2)
+    case 'u':
+      return s.scanRune(16, 4)
+    case 'U':
+      return s.scanRune(16, 8)
+    default:
+      return 0, s.errorf(span{s.text, start, s.index - start}, nil, "Invalid escape sequence")
+	}
+}
+
+/*
+func digitVal(ch rune) int {
+	switch {
+	case '0' <= ch && ch <= '9':
+		return int(ch - '0')
+	case 'a' <= ch && ch <= 'f':
+		return int(ch - 'a' + 10)
+	case 'A' <= ch && ch <= 'F':
+		return int(ch - 'A' + 10)
+	}
+	return 16 // larger than any legal digit val
+}
+
+func isDecimal(ch rune) bool { return '0' <= ch && ch <= '9' }
+
+func (s *scanner) scanMantissa(ch rune) rune {
+	for isDecimal(ch) {
+		ch = s.next()
+	}
+	return ch
+}
+
+func (s *scanner) scanFraction(ch rune) rune {
+	if ch == '.' {
+		ch = s.scanMantissa(s.next())
+	}
+	return ch
+}
+
+func (s *scanner) scanExponent(ch rune) rune {
+	if ch == 'e' || ch == 'E' {
+		ch = s.next()
+		if ch == '-' || ch == '+' {
+			ch = s.next()
+		}
+		ch = s.scanMantissa(ch)
+	}
+	return ch
+}
+
+func (s *scanner) scanNumber(ch rune) (rune, rune) {
+	// isDecimal(ch)
+	if ch == '0' {
+		// int or float
+		ch = s.next()
+		if ch == 'x' || ch == 'X' {
+			// hexadecimal int
+			ch = s.next()
+			hasMantissa := false
+			for digitVal(ch) < 16 {
+				ch = s.next()
+				hasMantissa = true
+			}
+			if !hasMantissa {
+				s.error("illegal hexadecimal number")
+			}
+		} else {
+			// octal int or float
+			has8or9 := false
+			for isDecimal(ch) {
+				if ch > '7' {
+					has8or9 = true
+				}
+				ch = s.next()
+			}
+			if s.Mode&ScanFloats != 0 && (ch == '.' || ch == 'e' || ch == 'E') {
+				// float
+				ch = s.scanFraction(ch)
+				ch = s.scanExponent(ch)
+				return Float, ch
+			}
+			// octal int
+			if has8or9 {
+				s.error("illegal octal number")
+			}
+		}
+		return Int, ch
+	}
+	// decimal int or float
+	ch = s.scanMantissa(ch)
+	if s.Mode&ScanFloats != 0 && (ch == '.' || ch == 'e' || ch == 'E') {
+		// float
+		ch = s.scanFraction(ch)
+		ch = s.scanExponent(ch)
+		return Float, ch
+	}
+	return Int, ch
+}
+
+func (s *scanner) scanDigits(ch rune, base, n int) rune {
+	for n > 0 && digitVal(ch) < base {
+		ch = s.next()
+		n--
+	}
+	if n > 0 {
+		s.error("illegal char escape")
+	}
+	return ch
+}
+
+func (s *scanner) scanEscape(quote rune) rune {
+	ch := s.next() // read character after '/'
+	switch ch {
+	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
+		// nothing to do
+		ch = s.next()
+	case '0', '1', '2', '3', '4', '5', '6', '7':
+		ch = s.scanDigits(ch, 8, 3)
+	case 'x':
+		ch = s.scanDigits(s.next(), 16, 2)
+	case 'u':
+		ch = s.scanDigits(s.next(), 16, 4)
+	case 'U':
+		ch = s.scanDigits(s.next(), 16, 8)
+	default:
+		s.error("illegal char escape")
+	}
+	return ch
+}
+
+func (s *scanner) scanString(quote rune) (n int) {
+	ch := s.next() // read character after quote
+	for ch != quote {
+		if ch == '\n' || ch < 0 {
+			s.error("literal not terminated")
+			return
+		}
+		if ch == '\\' {
+			ch = s.scanEscape(quote)
+		} else {
+			ch = s.next()
+		}
+		n++
+	}
+	return
+}
+
+func (s *scanner) scanRawString() {
+	ch := s.next() // read character after '`'
+	for ch != '`' {
+		if ch < 0 {
+			s.error("literal not terminated")
+			return
+		}
+		ch = s.next()
+	}
+}
+
+func (s *scanner) scanChar() {
+	if s.scanString('\'') != 1 {
+		s.error("illegal char literal")
+	}
+}
+
+func (s *scanner) scanComment(ch rune) rune {
+	// ch == '/' || ch == '*'
+	if ch == '/' {
+		// line comment
+		ch = s.next() // read character after "//"
+		for ch != '\n' && ch >= 0 {
+			ch = s.next()
+		}
+		return ch
+	}
+
+	// general comment
+	ch = s.next() // read character after "/*"
+	for {
+		if ch < 0 {
+			s.error("comment not terminated")
+			break
+		}
+		ch0 := ch
+		ch = s.next()
+		if ch0 == '*' && ch == '/' {
+			ch = s.next()
+			break
+		}
+	}
+	return ch
+}
+*/
