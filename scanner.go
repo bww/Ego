@@ -31,7 +31,7 @@
 package ego
 
 import (
-  _ "fmt"
+  "fmt"
   "unicode/utf8"
 )
 
@@ -73,7 +73,7 @@ func (t tokenType) String() string {
     case tokenMeta:
       return "@"
     default:
-      return "Unknown"
+      return fmt.Sprintf("%v", rune(t))
   }
 }
 
@@ -153,6 +153,13 @@ func (s *scanner) next() rune {
 }
 
 /**
+ * Shuffle the token start to the current index
+ */
+func (s *scanner) ignore() {
+  s.start = s.index
+}
+
+/**
  * Unconsume the previous rune from input (this can be called only once
  * per invocation of next())
  */
@@ -170,7 +177,7 @@ func startAction(s *scanner) scannerAction {
       if s.index > s.start {
         s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
       }
-      return metaAction  // next state
+      return preludeAction
     }
     if s.next() == eof {
       break
@@ -190,11 +197,48 @@ func startAction(s *scanner) scannerAction {
 }
 
 /**
- * Meta action
+ * Prelude action. This introduces a meta expression or control structure.
  */
-func metaAction(s *scanner) scannerAction {
+func preludeAction(s *scanner) scannerAction {
   s.emit(token{span{s.text, s.index, 1}, tokenMeta, "@"})
   s.next() // skip the '@' delimiter
+  return metaAction
+}
+
+/**
+ * Meta action.
+ */
+func metaAction(s *scanner) scannerAction {
+  
+  for {
+    
+    if s.index < len(s.text) && s.text[s.index] == '{' {
+      return innerAction
+    }
+    
+    s.next() // advance
+    
+  }
+  
+    /*
+    switch r := l.next(); {
+    case r == eof || r == '\n':
+        return l.errorf("unclosed action")
+    case isSpace(r):
+        l.ignore()
+    case r == '|':
+  
+  s.emit(token{span{s.text, s.index, 1}, tokenMeta, "@"})
+  s.next() // skip the '@' delimiter
+  */
+  
+  return startAction
+}
+
+/**
+ * Meta interior action.
+ */
+func innerAction(s *scanner) scannerAction {
   return startAction
 }
 
