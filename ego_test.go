@@ -38,8 +38,7 @@ import (
 func TestThis(t *testing.T) {
   
   c := make(chan token)
-  s := newScanner("Hi @\"This is\\n\\t\\\"quoted\\\".\" Ok. Yeah.", c)
-  
+  s := newScanner("Hi @\"This \u2022 is\\n\\t\\\"quoted\\\".\" Ok. Yeah.", c)
   go s.scan()
   
   for {

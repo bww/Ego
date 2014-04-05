@@ -75,10 +75,14 @@ type tokenType int
  * Token types
  */
 const (
+  
   tokenError tokenType = iota
   tokenEOF
   tokenVerbatim
   tokenMeta
+  
+  tokenString
+  
 )
 
 /**
@@ -308,12 +312,12 @@ func metaAction(s *scanner) scannerAction {
  * Quoted string
  */
 func quotedStringAction(s *scanner) scannerAction {
-  if v, err := s.scanDelimitedToken('"', '\\', "tvrna"); err != nil {
+  if v, err := s.scanQuotedString('"', '\\'); err != nil {
     fmt.Println(err)
   }else{
-    fmt.Println(v)
+    s.emit(token{span{s.text, s.start, s.index - s.start}, tokenString, v})
   }
-  return nil
+  return metaAction
 }
 
 /***
@@ -324,7 +328,7 @@ func quotedStringAction(s *scanner) scannerAction {
  * Scan a delimited token with escape sequences. The opening delimiter is
  * expected to have already been consumed.
  */
-func (s *scanner) scanDelimitedToken(delim, escape rune, echars string) (string, error) {
+func (s *scanner) scanQuotedString(quote, escape rune) (string, error) {
   var unquoted string
   
   for {
@@ -335,13 +339,13 @@ func (s *scanner) scanDelimitedToken(delim, escape rune, echars string) (string,
         
       case r == escape:
         s.backup() // backup to the escape
-        if e, err := s.scanEscape(delim, escape); err != nil {
+        if e, err := s.scanEscape(quote, escape); err != nil {
           return "", s.errorf(span{s.text, s.start, s.index - s.start}, err, "Invalid escape sequence")
         }else{
           unquoted += string(e)
         }
         
-      case r == delim:
+      case r == quote:
         return unquoted, nil
         
       default:
@@ -377,6 +381,13 @@ func digitValue(ch rune) int {
       return int(ch - 'A' + 10)
 	}
 	return 16 // too big
+}
+
+/**
+ * Decimla digit?
+ */
+func isDecimal(ch rune) bool {
+  return '0' <= ch && ch <= '9'
 }
 
 /**
@@ -454,19 +465,6 @@ func (s *scanner) scanEscape(quote, esc rune) (rune, error) {
 }
 
 /*
-func digitVal(ch rune) int {
-	switch {
-	case '0' <= ch && ch <= '9':
-		return int(ch - '0')
-	case 'a' <= ch && ch <= 'f':
-		return int(ch - 'a' + 10)
-	case 'A' <= ch && ch <= 'F':
-		return int(ch - 'A' + 10)
-	}
-	return 16 // larger than any legal digit val
-}
-
-func isDecimal(ch rune) bool { return '0' <= ch && ch <= '9' }
 
 func (s *scanner) scanMantissa(ch rune) rune {
 	for isDecimal(ch) {
@@ -540,37 +538,6 @@ func (s *scanner) scanNumber(ch rune) (rune, rune) {
 		return Float, ch
 	}
 	return Int, ch
-}
-
-func (s *scanner) scanDigits(ch rune, base, n int) rune {
-	for n > 0 && digitVal(ch) < base {
-		ch = s.next()
-		n--
-	}
-	if n > 0 {
-		s.error("illegal char escape")
-	}
-	return ch
-}
-
-func (s *scanner) scanEscape(quote rune) rune {
-	ch := s.next() // read character after '/'
-	switch ch {
-	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
-		// nothing to do
-		ch = s.next()
-	case '0', '1', '2', '3', '4', '5', '6', '7':
-		ch = s.scanDigits(ch, 8, 3)
-	case 'x':
-		ch = s.scanDigits(s.next(), 16, 2)
-	case 'u':
-		ch = s.scanDigits(s.next(), 16, 4)
-	case 'U':
-		ch = s.scanDigits(s.next(), 16, 8)
-	default:
-		s.error("illegal char escape")
-	}
-	return ch
 }
 
 func (s *scanner) scanString(quote rune) (n int) {
