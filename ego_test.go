@@ -39,13 +39,13 @@ func TestThis(t *testing.T) {
   
   sources := []string{
     
-`\foo`,
-`\@`,
-`x\@`,
-`\\\@`,
-`\@\\`,
-`\\`,
-`\`,
+    `\foo`,
+    `\@`,
+    `x\@`,
+    `\\\@`,
+    `\@\\`,
+    `\\`,
+    `\`,
 
 `@if true {
   This is a literal \\\} right here.
@@ -60,14 +60,14 @@ Why doesn't this break?!
   Ok. Yeah.
 } ... more.
   
+@for 123 "String" {
+  Do this, then... \{ hmm \}
+}
+
 @if false {
   Nope...
 } else {
   This text instead!
-}
-
-@for 123 "String" {
-  Do this, then... \{ hmm \}
 }
 
 Foo.

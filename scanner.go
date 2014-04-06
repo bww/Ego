@@ -386,11 +386,13 @@ func startAction(s *scanner) scannerAction {
     
     if s.index < len(s.text) {
       switch s.text[s.index] {
+        
         case meta:
           if s.index > s.start {
             s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
           }
           return preludeAction
+          
         case '}':
           if s.index > s.start {
             s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
@@ -400,6 +402,7 @@ func startAction(s *scanner) scannerAction {
           }else{
             return finalizeAction
           }
+          
       }
     }
     
@@ -417,8 +420,7 @@ func startAction(s *scanner) scannerAction {
           s.emit(token{t, tokenVerbatim, t.String()})
           s.ignore()
           
-        case r == '@':
-        case r == '}':
+        case r == '@' || r == '{' || r == '}':
           if s.index - 2 > s.start {
             t = span{s.text, s.start, s.index - s.start - 2}  // verbatim up to '\', exclusive (we know the widths of runes '\' and r)
             s.emit(token{t, tokenVerbatim, t.String()})
