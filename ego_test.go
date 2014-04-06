@@ -37,17 +37,21 @@ import (
 
 func TestThis(t *testing.T) {
   
-  /*source := `
-Hi @"This \u2022 is\n\t\"quoted\"."
-  This, that, if else for
-  Ok. Yeah.
-`*/
-  source := `
-Hi.
+  sources := []string{
+    
+`\foo`,
+`\@`,
+`x\@`,
+`\\\@`,
+`\@\\`,
+`\\`,
+`\`,
 
+`Hi.
+\a\\
 Why doesn't this break?!
 \@
-@@if true {
+@if true {
   This, that, if else for
   Ok. Yeah.
 } ... more.
@@ -63,8 +67,16 @@ Why doesn't this break?!
 }
 
 Foo.
-`
+`,
+  }
   
+  for _, e := range sources {
+    compile(t, e)
+  }
+  
+}
+
+func compile(test *testing.T, source string) {
   fmt.Println(source)
   
   c := make(chan token)
@@ -79,6 +91,6 @@ Foo.
     }
   }
   
-  fmt.Println("Done.")
+  fmt.Println("---")
 }
 

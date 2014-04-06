@@ -60,11 +60,18 @@ type span struct {
 }
 
 /**
- * Span excerpt
+ * Span (unquoted) excerpt
+ */
+func (s span) excerpt() string {
+  max := float64(len(s.text))
+  return s.text[int(math.Max(0, math.Min(max, float64(s.offset)))):int(math.Min(max, float64(s.offset+s.length)))]
+}
+
+/**
+ * Span (quoted) excerpt
  */
 func (s span) String() string {
-  max := float64(len(s.text) - 1)
-  return strconv.Quote(s.text[int(math.Max(0, math.Min(max, float64(s.offset)))):int(math.Min(max, float64(s.offset+s.length)))])
+  return strconv.Quote(s.excerpt())
 }
 
 /**
@@ -215,7 +222,7 @@ type scannerAction func(*scanner) scannerAction
  * Create a scanner
  */
 func newScanner(text string, tokens chan token) *scanner {
-  return &scanner{text, 0, 0, -1, 0, tokens}
+  return &scanner{text, 0, 0, 0, 0, tokens}
 }
 
 /**
@@ -381,12 +388,12 @@ func startAction(s *scanner) scannerAction {
       switch s.text[s.index] {
         case meta:
           if s.index > s.start {
-            s.emit(token{span{s.text, s.start+1, s.index - s.start - 1}, tokenVerbatim, s.text[s.start+1:s.index]})
+            s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
           }
           return preludeAction
         case '}':
           if s.index > s.start {
-            s.emit(token{span{s.text, s.start+1, s.index - s.start - 1}, tokenVerbatim, s.text[s.start+1:s.index]})
+            s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
           }
           if from := s.findFrom(s.index + 1, " \n\r\t\v", true); s.matchAt(from, "else") {
             return metaAction
@@ -396,8 +403,30 @@ func startAction(s *scanner) scannerAction {
       }
     }
     
-    if s.next() == eof {
+    if r := s.next(); r == eof {
       break
+    }else if r == '\\' {
+      var t span
+      switch r := s.next(); {
+        
+        case r == eof:
+          break
+          
+        case r == '@':
+          if s.index - 2 > s.start {
+            t = span{s.text, s.start, s.index - s.start - 2}  // verbatim up to '\', exclusive (we know the widths of runes '\' and '@')
+            s.emit(token{t, tokenVerbatim, t.String()})
+          }
+          t = span{s.text, s.index - 1, 1}                    // emit '@', continue (literal '@')
+          s.emit(token{t, tokenVerbatim, t.String()})
+          s.ignore()
+          
+        case r == '\\':
+          t = span{s.text, s.start, s.index - s.start - 1}    // verbatim up to first '\', ignore second (literal '\')
+          s.emit(token{t, tokenVerbatim, t.String()})
+          s.ignore()
+          
+      }
     }
     
   }
