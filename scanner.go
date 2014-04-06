@@ -417,6 +417,7 @@ func startAction(s *scanner) scannerAction {
             t = span{s.text, s.start, s.index - s.start - 2}  // verbatim up to '\', exclusive (we know the widths of runes '\' and '@')
             s.emit(token{t, tokenVerbatim, t.String()})
           }
+          
           t = span{s.text, s.index - 1, 1}                    // emit '@', continue (literal '@')
           s.emit(token{t, tokenVerbatim, t.String()})
           s.ignore()
@@ -474,7 +475,7 @@ func metaAction(s *scanner) scannerAction {
       case unicode.IsSpace(r):
         s.ignore()
       case r == '{': // open verbatim
-        s.depth++
+        s.depth++; s.ignore()
         return startAction
       case r == '"':
         // consume the open '"'

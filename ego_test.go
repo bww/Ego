@@ -47,6 +47,10 @@ func TestThis(t *testing.T) {
 `\\`,
 `\`,
 
+`@if true {
+  This is a literal \} right here.
+}`,
+
 `Hi.
 \a\\
 Why doesn't this break?!
