@@ -48,7 +48,7 @@ func TestThis(t *testing.T) {
 `\`,
 
 `@if true {
-  This is a literal \} right here.
+  This is a literal \\\} right here.
 }`,
 
 `Hi.

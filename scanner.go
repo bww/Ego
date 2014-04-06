@@ -412,18 +412,19 @@ func startAction(s *scanner) scannerAction {
         case r == eof:
           break
           
-        case r == '@':
-          if s.index - 2 > s.start {
-            t = span{s.text, s.start, s.index - s.start - 2}  // verbatim up to '\', exclusive (we know the widths of runes '\' and '@')
-            s.emit(token{t, tokenVerbatim, t.String()})
-          }
-          
-          t = span{s.text, s.index - 1, 1}                    // emit '@', continue (literal '@')
+        case r == '\\':
+          t = span{s.text, s.start, s.index - s.start - 1}    // verbatim up to first '\', ignore second (literal '\')
           s.emit(token{t, tokenVerbatim, t.String()})
           s.ignore()
           
-        case r == '\\':
-          t = span{s.text, s.start, s.index - s.start - 1}    // verbatim up to first '\', ignore second (literal '\')
+        case r == '@':
+        case r == '}':
+          if s.index - 2 > s.start {
+            t = span{s.text, s.start, s.index - s.start - 2}  // verbatim up to '\', exclusive (we know the widths of runes '\' and r)
+            s.emit(token{t, tokenVerbatim, t.String()})
+          }
+          
+          t = span{s.text, s.index - 1, 1}                    // emit r, continue (literal r)
           s.emit(token{t, tokenVerbatim, t.String()})
           s.ignore()
           
@@ -487,7 +488,7 @@ func metaAction(s *scanner) scannerAction {
         s.backup()
         return identifierAction
       default:
-        return s.error(s.errorf(span{s.text, s.index, 1}, nil, "Syntax error"))
+        return s.error(s.errorf(span{s.text, s.index, 1}, nil, "Syntax error in meta"))
     }
   }
   
