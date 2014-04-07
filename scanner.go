@@ -94,7 +94,7 @@ type tokenType int
  */
 const (
   
-  tokenError tokenType = iota
+  tokenError tokenType  = iota
   tokenEOF
   tokenVerbatim
   tokenMeta
@@ -111,6 +111,39 @@ const (
   tokenTrue
   tokenFalse
   tokenNil
+  
+  tokenLParen           = '('
+  tokenRParen           = ')'
+  tokenLBracket         = '['
+  tokenRBracket         = ']'
+  tokenDot              = '.'
+  tokenComma            = ','
+  tokenSemi             = ';'
+  tokenAdd              = '+'
+  tokenSub              = '-'
+  tokenMul              = '*'
+  tokenDiv              = '/'
+  tokenAssign           = '='
+  tokenLess             = '<'
+  tokenGreater          = '>'
+  tokenBang             = '!'
+  
+  tokenPrefixAdd        = 1 << 16
+  tokenInc              = tokenPrefixAdd | '+'
+  
+  tokenPrefixSub        = 1 << 17
+  tokenDec              = tokenPrefixSub | '-'
+  
+  tokenSuffixEqual      = 1 << 18
+  tokenEqual            = tokenSuffixEqual | '='
+  tokenAddEqual         = tokenSuffixEqual | '+'
+  tokenSubEqual         = tokenSuffixEqual | '-'
+  tokenMulEqual         = tokenSuffixEqual | '*'
+  tokenDivEqual         = tokenSuffixEqual | '/'
+  tokenLessEqual        = tokenSuffixEqual | '<'
+  tokenGreaterEqual     = tokenSuffixEqual | '>'
+  tokenNotEqual         = tokenSuffixEqual | '!'
+  tokenAssignInfer      = tokenSuffixEqual | ':'
   
 )
 
@@ -148,7 +181,11 @@ func (t tokenType) String() string {
     case tokenNil:
       return "nil"
     default:
-      return fmt.Sprintf("'%v'", string(t))
+      if t < 128 {
+        return fmt.Sprintf("'%v'", string(t))
+      }else{
+        return fmt.Sprintf("%U", t)
+      }
   }
 }
 
@@ -502,9 +539,9 @@ func metaAction(s *scanner) scannerAction {
         
       case r == '+':
         if n := s.next(); n == '=' {
-          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenSuffixEqual | r), string(r)})
         }else if n == '+' {
-          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenPrefixAdd | r), string(r)})
         }else{
           s.backup()
           s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
@@ -513,9 +550,9 @@ func metaAction(s *scanner) scannerAction {
       
       case r == '-':
         if n := s.next(); n == '=' {
-          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenSuffixEqual | r), string(r)})
         }else if n == '-' {
-          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenPrefixSub | r), string(r)})
         }else{
           s.backup()
           s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
@@ -524,7 +561,7 @@ func metaAction(s *scanner) scannerAction {
       
       case r == '=' || r == '!' || r == '<' || r == '>' || r == ':' || r == '*' || r == '/':
         if n := s.next(); n == '=' {
-          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenSuffixEqual | r), string(r)})
         }else{
           s.backup()
           s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
