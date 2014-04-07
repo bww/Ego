@@ -111,6 +111,7 @@ const (
   tokenTrue
   tokenFalse
   tokenNil
+  tokenRange
   
   tokenLParen           = '('
   tokenRParen           = ')'
@@ -180,6 +181,8 @@ func (t tokenType) String() string {
       return "false"
     case tokenNil:
       return "nil"
+    case tokenRange:
+      return "range"
     default:
       if t < 128 {
         return fmt.Sprintf("'%v'", string(t))
@@ -625,6 +628,8 @@ func identifierAction(s *scanner) scannerAction {
       s.emit(token{t, tokenFalse, v})
     case "nil":
       s.emit(token{t, tokenNil, nil})
+    case "range":
+      s.emit(token{t, tokenRange, v})
     default:
       s.emit(token{t, tokenIdentifier, v})
   }
