@@ -31,6 +31,7 @@
 package ego
 
 import (
+  "os"
   "fmt"
   "testing"
 )
@@ -306,12 +307,15 @@ func compileAndValidate(test *testing.T, source string, expect []token) {
 func TestParse(t *testing.T) {
   var source string
   
-  source = `Hello, there. @if{}`
+  source = `Hello, there.@if{}`
   
   s := newScanner(source)
   p := newParser(s)
+  r := &runtime{os.Stdout}
   
-  if err := p.parse(); err != nil {
+  if p, err := p.parse(); err != nil {
+    t.Error(err)
+  }else if err := p.exec(r, nil); err != nil {
     t.Error(err)
   }
   

@@ -51,18 +51,91 @@ func newParser(s *scanner) *parser {
 /**
  * Parse
  */
-func (p *parser) parse() error {
+func (p *parser) parse() (*program, error) {
+  prog := &program{}
+  
   for {
     t := p.scanner.scan()
     switch t.which {
+      
       case tokenEOF:
-        return nil
+        return prog, nil
+        
       case tokenError:
+        return nil, fmt.Errorf("Error: %v", t)
+        
       case tokenVerbatim:
+        prog.add(&verbatimNode{node{t.span, &t, nil}})
+        
+      case tokenMeta:
+        if n, err := p.parseMeta(); err != nil {
+          return nil, err
+        }else{
+          prog.add(n)
+        }
+        
       default:
-        return fmt.Errorf("Unsupported token: %v", t)
+        return nil, fmt.Errorf("Unsupported token: %v", t)
+        
     }
   }
+  
+}
+
+/**
+ * Parse
+ */
+func (p *parser) parseMeta() (*node, error) {
+  out := &metaNode{}
+  t := p.scanner.scan()
+  switch t.which {
+    
+    case tokenIf:
+      if n, err := p.parseIf(); err != nil {
+        return nil, err
+      }else{
+        return out.add(n), nil
+      }
+      
+    case tokenFor:
+      if n, err := p.parseFor(); err != nil {
+        return nil, err
+      }else{
+        return out.add(n), nil
+      }
+      
+    default:
+      return nil, fmt.Errorf("Illegal token in meta: %v", t)
+      
+  }
+}
+
+/**
+ * Parse
+ */
+func (p *parser) parseIf() (*node, error) {
+  out := &ifNode{}
+  if n, err := p.parseExpression(); err != nil {
+    return nil, err
+  }else{
+    return out.add(n), nil
+  }
+}
+
+/**
+ * Parse
+ */
+func (p *parser) parseFor() (*node, error) {
+  return nil, nil
+}
+
+/**
+ * Parse
+ */
+func (p *parser) parseExpression() (*node, error) {
+  out := &exprNode{}
+  //t := p.scanner.scan()
+  return out.add(nil), nil
 }
 
 
