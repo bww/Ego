@@ -238,18 +238,12 @@ func TestBasicMeta(t *testing.T) {
 func compileAndValidate(test *testing.T, source string, expect []token) {
   fmt.Println(source)
   
-  c := make(chan token)
-  s := newScanner(source, c)
-  go s.scan()
+  s := newScanner(source)
   
   for {
     
-    t, ok := <- c
-    if !ok {
-      break
-    }else{
-      fmt.Println("T", t)
-    }
+    t := s.scan()
+    fmt.Println("T", t)
     
     if expect != nil {
       
@@ -281,6 +275,12 @@ func compileAndValidate(test *testing.T, source string, expect []token) {
       
       expect = expect[1:]
       
+    }
+    
+    if t.which == tokenEOF {
+      break
+    }else if t.which == tokenError {
+      break
     }
     
   }

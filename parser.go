@@ -27,17 +27,6 @@
 // OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
-// --
-// 
-// This scanner incorporates routines from the Go package text/scanner:
-// http://golang.org/src/pkg/text/scanner/scanner.go
-// 
-// Copyright 2009 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-// 
-// http://golang.org/LICENSE
-// 
 
 package ego
 

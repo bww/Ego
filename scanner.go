@@ -222,16 +222,9 @@ func (t token) String() string {
 }
 
 /**
- * A scanner
+ * A scanner action
  */
-type scanner struct {
-  text      string
-  index     int
-  width     int // current rune width
-  start     int // token start position
-  depth     int // meta depth
-  tokens    chan token
-}
+type scannerAction func(*scanner) scannerAction
 
 /**
  * A scanner error
@@ -254,15 +247,38 @@ func (s *scannerError) Error() string {
 }
 
 /**
- * A scanner action
+ * A scanner
  */
-type scannerAction func(*scanner) scannerAction
+type scanner struct {
+  text      string
+  index     int
+  width     int // current rune width
+  start     int // token start position
+  depth     int // meta depth
+  tokens    chan token
+  state     scannerAction
+}
 
 /**
  * Create a scanner
  */
-func newScanner(text string, tokens chan token) *scanner {
-  return &scanner{text, 0, 0, 0, 0, tokens}
+func newScanner(text string) *scanner {
+  t := make(chan token, 7 /* up to 3 tokens may be emitted in a single iteration ((3 * 2) + 1) */)
+  return &scanner{text, 0, 0, 0, 0, t, startAction}
+}
+
+/**
+ * Scan and produce a token
+ */
+func (s *scanner) scan() token {
+  for {
+    select {
+      case t := <- s.tokens:
+        return t
+      default:
+        s.state = s.state(s)
+    }
+  }
 }
 
 /**
@@ -270,16 +286,6 @@ func newScanner(text string, tokens chan token) *scanner {
  */
 func (s *scanner) errorf(where span, cause error, format string, args ...interface{}) *scannerError {
   return &scannerError{fmt.Sprintf(format, args...), where, cause}
-}
-
-/**
- * Scan tokens and produce them on our token channel
- */
-func (s *scanner) scan() {
-  for state := startAction; state != nil; {
-    state = state(s)
-  }
-  close(s.tokens)
 }
 
 /**
