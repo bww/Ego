@@ -41,7 +41,7 @@ func TestThis(t *testing.T) {
     
 `@if true ()[]., + ++ += - -- -= = == : := ! != * *= / /= < <= > >= ; range {
   This is a literal \\\} right here.
-}`,
+}else if range {} else {}`,
 
 `Hi.
 \a\\

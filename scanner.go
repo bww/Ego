@@ -263,7 +263,7 @@ type scanner struct {
  * Create a scanner
  */
 func newScanner(text string) *scanner {
-  t := make(chan token, 7 /* up to 3 tokens may be emitted in a single iteration ((3 * 2) + 1) */)
+  t := make(chan token, 5 /* several tokens may be produced in one iteration */)
   return &scanner{text, 0, 0, 0, 0, t, startAction}
 }
 
@@ -444,6 +444,7 @@ func startAction(s *scanner) scannerAction {
             s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
           }
           if from := s.findFrom(s.index + 1, " \n\r\t\v", true); s.matchAt(from, "else") {
+            s.next(); s.ignore() // consume the '}' token
             return metaAction
           }else{
             return finalizeAction
