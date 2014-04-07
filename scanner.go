@@ -460,7 +460,7 @@ func preludeAction(s *scanner) scannerAction {
  * Finalize action. This closes a meta expression or control structure.
  */
 func finalizeAction(s *scanner) scannerAction {
-  s.emit(token{span{s.text, s.index, 1}, tokenAtem, "~"})
+  s.emit(token{span{s.text, s.index, 1}, tokenAtem, nil})
   s.next()  // skip the '}' delimiter
   s.depth-- // decrement the meta depth
   return startAction
@@ -513,14 +513,11 @@ func stringAction(s *scanner) scannerAction {
  * Number string
  */
 func numberAction(s *scanner) scannerAction {
-  /*
-  if v, err := s.scanNumber(); err != nil {
-    fmt.Println("EMIT AN ERROR TOKEN HERE", err)
+  if v, _, err := s.scanNumber(); err != nil {
+    s.error(s.errorf(span{s.text, s.index, 1}, err, "Invalid number"))
   }else{
     s.emit(token{span{s.text, s.start, s.index - s.start}, tokenNumber, v})
   }
-  */
-  s.next()
   return metaAction
 }
 
@@ -698,7 +695,6 @@ func (s *scanner) scanEscape(quote, esc rune) (rune, error) {
 	}
 }
 
-/*
 func (s *scanner) scanMantissa(ch rune) rune {
 	for isDecimal(ch) {
 		ch = s.next()
@@ -727,22 +723,35 @@ func (s *scanner) scanExponent(ch rune) rune {
 func (s *scanner) scanNumber() (float64, numericType, error) {
   start := s.index
   ch := s.next()
+  
 	// isDecimal(ch)
 	if ch == '0' {
+	  
 		// int or float
 		ch = s.next()
 		if ch == 'x' || ch == 'X' {
+		  
 			// hexadecimal int
 			ch = s.next()
+			
 			hasMantissa := false
-			for digitVal(ch) < 16 {
+			for digitValue(ch) < 16 {
 				ch = s.next()
 				hasMantissa = true
 			}
+			
 			if !hasMantissa {
-				return 0, 0, s.errorf(span{s.text, start, s.index - start}, nil, "illegal hexadecimal number")
+				return 0, 0, s.errorf(span{s.text, start, s.index - start}, nil, "Illegal hexadecimal number")
 			}
+			
+			if v, err := strconv.ParseInt(s.text[start:s.index], 16, 64); err != nil {
+				return 0, 0, s.errorf(span{s.text, start, s.index - start}, err, "Could not parse number")
+			}else{
+			  return float64(v), numericInteger, nil
+			}
+			
 		} else {
+		  
 			// octal int or float
 			has8or9 := false
 			for isDecimal(ch) {
@@ -751,58 +760,61 @@ func (s *scanner) scanNumber() (float64, numericType, error) {
 				}
 				ch = s.next()
 			}
-			if s.Mode&ScanFloats != 0 && (ch == '.' || ch == 'e' || ch == 'E') {
+			
+			if ch == '.' || ch == 'e' || ch == 'E' {
+				return 0, 0, s.errorf(span{s.text, start, s.index - start}, nil, "Octal floats are not supported")
+				/*
 				// float
 				ch = s.scanFraction(ch)
 				ch = s.scanExponent(ch)
-				return numericFloat, ch
+				return strconv.ParseFloat(s.text[start:s.index], 64), numericFloat, nil
+				*/
 			}
+			
 			// octal int
 			if has8or9 {
-				s.errorf(span{s.text, start, s.index - start}, nil, "illegal octal number")
+				s.errorf(span{s.text, start, s.index - start}, nil, "Illegal octal number")
 			}
+			
+			if v, err := strconv.ParseInt(s.text[start:s.index], 8, 64); err != nil {
+				return 0, 0, s.errorf(span{s.text, start, s.index - start}, err, "Could not parse number")
+			}else{
+			  return float64(v), numericInteger, nil
+			}
+			
 		}
-		return Int, ch
 	}
+	
 	// decimal int or float
 	ch = s.scanMantissa(ch)
-	if s.Mode&ScanFloats != 0 && (ch == '.' || ch == 'e' || ch == 'E') {
+	
+	// float
+	if ch == '.' || ch == 'e' || ch == 'E' {
 		// float
 		ch = s.scanFraction(ch)
 		ch = s.scanExponent(ch)
-		return numericFloat, ch
+    // unscan the non-numeric rune
+    s.backup()
+    if v, err := strconv.ParseFloat(s.text[start:s.index], 64); err != nil {
+      return 0, 0, s.errorf(span{s.text, start, s.index - start}, err, "Could not parse number")
+    }else{
+      return v, numericInteger, nil
+    }
+	}else{
+    // unscan the non-numeric rune
+    s.backup()
 	}
-	return numericInteger, ch
+	
+	// integer
+  if v, err := strconv.ParseInt(s.text[start:s.index], 10, 64); err != nil {
+    return 0, 0, s.errorf(span{s.text, start, s.index - start}, err, "Could not parse number")
+  }else{
+    return float64(v), numericInteger, nil
+  }
+  
 }
 
-func (s *scanner) scanString(quote rune) (n int) {
-	ch := s.next() // read character after quote
-	for ch != quote {
-		if ch == '\n' || ch < 0 {
-			s.error("literal not terminated")
-			return
-		}
-		if ch == '\\' {
-			ch = s.scanEscape(quote)
-		} else {
-			ch = s.next()
-		}
-		n++
-	}
-	return
-}
-
-func (s *scanner) scanRawString() {
-	ch := s.next() // read character after '`'
-	for ch != '`' {
-		if ch < 0 {
-			s.error("literal not terminated")
-			return
-		}
-		ch = s.next()
-	}
-}
-
+/*
 func (s *scanner) scanChar() {
 	if s.scanString('\'') != 1 {
 		s.error("illegal char literal")

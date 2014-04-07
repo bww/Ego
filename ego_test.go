@@ -39,14 +39,6 @@ func TestThis(t *testing.T) {
   
   sources := []string{
     
-    `\foo`,
-    `\@`,
-    `x\@`,
-    `\\\@`,
-    `\@\\`,
-    `\\`,
-    `\`,
-
 `@if true {
   This is a literal \\\} right here.
 }`,
@@ -109,13 +101,6 @@ func TestBasicEscaping(t *testing.T) {
     token{span{source, 4, 0}, tokenEOF, nil},
   })
   
-  source = `\\\@`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenVerbatim, "\\"},
-    token{span{source, 3, 1}, tokenVerbatim, "@"},
-    token{span{source, 4, 0}, tokenEOF, nil},
-  })
-  
   source = `\@\\`
   compileAndValidate(t, source, []token{
     token{span{source, 1, 1}, tokenVerbatim, "@"},
@@ -135,21 +120,46 @@ func TestBasicEscaping(t *testing.T) {
     token{span{source, 1, 0}, tokenEOF, nil},
   })
   
-  /*
-    sources := []string{
-    `\foo`,
-    `\@`,
-    `x\@`,
-    `\\\@`,
-    `\@\\`,
-    `\\`,
-    `\`,
-  }
+  source = `foo\`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 4}, tokenVerbatim, "foo\\"},
+    token{span{source, 4, 0}, tokenEOF, nil},
+  })
   
-  for _, e := range sources {
-    compileAndValidate(t, e, nil)
-  }
-  */
+}
+
+func TestBasicTypes(t *testing.T) {
+  var source string
+  
+  source = `@123{}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 3}, tokenNumber, float64(123)},
+    token{span{source, 5, 1}, tokenAtem, nil},
+    token{span{source, 6, 0}, tokenEOF, nil},
+  })
+  
+  source = `@123.456{}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 7}, tokenNumber, float64(123.456)},
+    token{span{source, 9, 1}, tokenAtem, nil},
+    token{span{source, 10, 0}, tokenEOF, nil},
+  })
+  
+}
+
+func TestBasicMeta(t *testing.T) {
+  var source string
+  
+  source = `@if true {}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 2}, tokenIf, "if"},
+    token{span{source, 4, 4}, tokenTrue, "true"},
+    token{span{source, 10, 1}, tokenAtem, nil},
+    token{span{source, 11, 0}, tokenEOF, nil},
+  })
   
 }
 
@@ -173,6 +183,7 @@ func compileAndValidate(test *testing.T, source string, expect []token) {
       
       if len(expect) < 1 {
         test.Errorf("Unexpected end of tokens")
+        fmt.Println("!!!")
         return
       }
       
@@ -180,16 +191,19 @@ func compileAndValidate(test *testing.T, source string, expect []token) {
       
       if e.which != t.which {
         test.Errorf("Unexpected token type (%v != %v)", t.which, e.which)
+        fmt.Println("!!!")
         return
       }
       
       if e.span.excerpt() != t.span.excerpt() {
         test.Errorf("Excerpts do not match (%q != %q)", t.span.excerpt(), e.span.excerpt())
+        fmt.Println("!!!")
         return
       }
       
       if e.value != t.value {
         test.Errorf("Values do not match (%v != %v)", t.value, e.value)
+        fmt.Println("!!!")
         return
       }
       
@@ -202,6 +216,7 @@ func compileAndValidate(test *testing.T, source string, expect []token) {
   if expect != nil {
     if len(expect) > 0 {
       test.Errorf("Unexpected end of input (%d tokens remain)", len(expect))
+      fmt.Println("!!!")
       return
     }
   }
