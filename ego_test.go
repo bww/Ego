@@ -39,7 +39,7 @@ func TestThis(t *testing.T) {
   
   sources := []string{
     
-`@if true {
+`@if true ()[]., + ++ += - -- -= = == ! != * *= / /= < <= > >= {
   This is a literal \\\} right here.
 }`,
 
@@ -169,6 +169,30 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 1, 5}, tokenString, "Hi."},
     token{span{source, 7, 1}, tokenAtem, nil},
     token{span{source, 8, 0}, tokenEOF, nil},
+  })
+  
+  source = `@true{}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 4}, tokenTrue, "true"},
+    token{span{source, 6, 1}, tokenAtem, nil},
+    token{span{source, 7, 0}, tokenEOF, nil},
+  })
+  
+  source = `@false{}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 5}, tokenFalse, "false"},
+    token{span{source, 7, 1}, tokenAtem, nil},
+    token{span{source, 8, 0}, tokenEOF, nil},
+  })
+  
+  source = `@nil{}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 3}, tokenNil, nil},
+    token{span{source, 5, 1}, tokenAtem, nil},
+    token{span{source, 6, 0}, tokenEOF, nil},
   })
   
   source = `@if{}`

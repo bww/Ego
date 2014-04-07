@@ -148,7 +148,7 @@ func (t tokenType) String() string {
     case tokenNil:
       return "nil"
     default:
-      return fmt.Sprintf("%v", rune(t))
+      return fmt.Sprintf("'%v'", string(t))
   }
 }
 
@@ -473,24 +473,67 @@ func metaAction(s *scanner) scannerAction {
   
   for {
     switch r := s.next(); {
+      
       case r == eof:
         return s.error(s.errorf(span{s.text, s.index, 1}, nil, "Unexpected end-of-input"))
+        
       case unicode.IsSpace(r):
         s.ignore()
+        
       case r == '{': // open verbatim
         s.depth++; s.ignore()
         return startAction
+        
       case r == '"':
         // consume the open '"'
         return stringAction
+        
       case r >= '0' && r <= '9':
         s.backup()
         return numberAction
+        
       case r == '_' || (r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z'):
         s.backup()
         return identifierAction
+        
+      case r == '(' || r == ')' || r == '[' || r == ']' || r == '.' || r == ',':
+        s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        return metaAction
+        
+      case r == '+':
+        if n := s.next(); n == '=' {
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        }else if n == '+' {
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        }else{
+          s.backup()
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        }
+        return metaAction
+      
+      case r == '-':
+        if n := s.next(); n == '=' {
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        }else if n == '-' {
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        }else{
+          s.backup()
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        }
+        return metaAction
+      
+      case r == '=' || r == '!' || r == '<' || r == '>' || r == '*' || r == '/':
+        if n := s.next(); n == '=' {
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        }else{
+          s.backup()
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        }
+        return metaAction
+        
       default:
         return s.error(s.errorf(span{s.text, s.index, 1}, nil, "Syntax error in meta"))
+        
     }
   }
   
@@ -544,7 +587,7 @@ func identifierAction(s *scanner) scannerAction {
     case "false":
       s.emit(token{t, tokenFalse, v})
     case "nil":
-      s.emit(token{t, tokenNil, v})
+      s.emit(token{t, tokenNil, nil})
     default:
       s.emit(token{t, tokenIdentifier, v})
   }
@@ -695,6 +738,9 @@ func (s *scanner) scanEscape(quote, esc rune) (rune, error) {
 	}
 }
 
+/**
+ * Scan a number mantissa
+ */
 func (s *scanner) scanMantissa(ch rune) rune {
 	for isDecimal(ch) {
 		ch = s.next()
@@ -702,6 +748,9 @@ func (s *scanner) scanMantissa(ch rune) rune {
 	return ch
 }
 
+/**
+ * Scan a number fraction
+ */
 func (s *scanner) scanFraction(ch rune) rune {
 	if ch == '.' {
 		ch = s.scanMantissa(s.next())
@@ -709,6 +758,9 @@ func (s *scanner) scanFraction(ch rune) rune {
 	return ch
 }
 
+/**
+ * Scan a number exponent
+ */
 func (s *scanner) scanExponent(ch rune) rune {
 	if ch == 'e' || ch == 'E' {
 		ch = s.next()
@@ -720,6 +772,9 @@ func (s *scanner) scanExponent(ch rune) rune {
 	return ch
 }
 
+/**
+ * Scan a number
+ */
 func (s *scanner) scanNumber() (float64, numericType, error) {
   start := s.index
   ch := s.next()
