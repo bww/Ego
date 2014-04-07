@@ -496,7 +496,7 @@ func metaAction(s *scanner) scannerAction {
         s.backup()
         return identifierAction
         
-      case r == '(' || r == ')' || r == '[' || r == ']' || r == '.' || r == ',':
+      case r == '(' || r == ')' || r == '[' || r == ']' || r == '.' || r == ',' || r == ';':
         s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
         return metaAction
         
@@ -522,7 +522,7 @@ func metaAction(s *scanner) scannerAction {
         }
         return metaAction
       
-      case r == '=' || r == '!' || r == '<' || r == '>' || r == '*' || r == '/':
+      case r == '=' || r == '!' || r == '<' || r == '>' || r == ':' || r == '*' || r == '/':
         if n := s.next(); n == '=' {
           s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
         }else{

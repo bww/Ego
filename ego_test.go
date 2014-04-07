@@ -39,7 +39,7 @@ func TestThis(t *testing.T) {
   
   sources := []string{
     
-`@if true ()[]., + ++ += - -- -= = == ! != * *= / /= < <= > >= {
+`@if true ()[]., + ++ += - -- -= = == : := ! != * *= / /= < <= > >= ; {
   This is a literal \\\} right here.
 }`,
 
