@@ -39,13 +39,47 @@ import (
  */
 type parser struct {
   scanner   *scanner
+  la        [2]token
 }
 
 /**
  * Create a parser
  */
 func newParser(s *scanner) *parser {
-  return &parser{s}
+  return &parser{scanner:s}
+}
+
+/**
+ * Obtain a look-ahead token without consuming it
+ */
+func (p *parser) peek(n int) token {
+  var t token
+  
+  if n < len(p.la) {
+    return p.la[n]
+  }else if n >= cap(p.la) {
+    panic("Look-ahead overrun")
+  }
+  
+  for i := len(p.la); i < n; i++ {
+    t = p.scanner.scan()
+    p.la[i] = t
+  }
+  
+  return t
+}
+
+/**
+ * Consume the next token
+ */
+func (p *parser) next() token {
+  if len(p.la) < 1 {
+    return p.scanner.scan()
+  }else{
+    t := p.la[0]
+    for i := 1; i < len(p.la); i++ { p.la[i-1] = p.la[i] }
+    return t
+  }
 }
 
 /**
@@ -55,7 +89,7 @@ func (p *parser) parse() (*program, error) {
   prog := &program{}
   
   for {
-    t := p.scanner.scan()
+    t := p.next()
     switch t.which {
       
       case tokenEOF:
@@ -87,7 +121,7 @@ func (p *parser) parse() (*program, error) {
  */
 func (p *parser) parseMeta() (*node, error) {
   out := &metaNode{}
-  t := p.scanner.scan()
+  t := p.next()
   switch t.which {
     
     case tokenIf:
@@ -134,7 +168,15 @@ func (p *parser) parseFor() (*node, error) {
  */
 func (p *parser) parseExpression() (*node, error) {
   out := &exprNode{}
-  //t := p.scanner.scan()
+  //t0 := p.peek(0)
+  t1 := p.peek(1)
+  
+  switch t1.which {
+    case tokenBlock: // end of meta
+    default:
+      return nil, fmt.Errorf("Illegal token in expression: %v", t1)
+  }
+  
   return out.add(nil), nil
 }
 

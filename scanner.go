@@ -98,6 +98,7 @@ const (
   tokenEOF
   tokenVerbatim
   tokenMeta
+  tokenBlock
   tokenAtem
   
   tokenString
@@ -171,8 +172,10 @@ func (t tokenType) String() string {
       return "Verbatim"
     case tokenMeta:
       return "@"
+    case tokenBlock:
+      return "{...}"
     case tokenAtem:
-      return "~"
+      return "#"
     case tokenString:
       return "String"
     case tokenNumber:
@@ -514,16 +517,6 @@ func preludeAction(s *scanner) scannerAction {
 }
 
 /**
- * Finalize action. This closes a meta expression or control structure.
- */
-func finalizeAction(s *scanner) scannerAction {
-  s.emit(token{span{s.text, s.index, 1}, tokenAtem, nil})
-  s.next()  // skip the '}' delimiter
-  s.depth-- // decrement the meta depth
-  return startAction
-}
-
-/**
  * Meta action.
  */
 func metaAction(s *scanner) scannerAction {
@@ -538,8 +531,8 @@ func metaAction(s *scanner) scannerAction {
         s.ignore()
         
       case r == '{': // open verbatim
-        s.depth++; s.ignore()
-        return startAction
+        s.backup()
+        return blockAction
         
       case r == '"':
         // consume the open '"'
@@ -616,6 +609,26 @@ func metaAction(s *scanner) scannerAction {
     }
   }
   
+  return startAction
+}
+
+/**
+ * Block { ... }
+ */
+func blockAction(s *scanner) scannerAction {
+  s.depth++ // increment the meta depth
+  s.emit(token{span{s.text, s.index, 1}, tokenBlock, nil})
+  s.next()  // skip the '{' delimiter
+  return startAction
+}
+
+/**
+ * Finalize action. This closes a meta expression or control structure.
+ */
+func finalizeAction(s *scanner) scannerAction {
+  s.emit(token{span{s.text, s.index, 1}, tokenAtem, nil})
+  s.next()  // skip the '}' delimiter
+  s.depth-- // decrement the meta depth
   return startAction
 }
 
