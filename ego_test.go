@@ -39,9 +39,16 @@ func TestThis(t *testing.T) {
   
   sources := []string{
     
-`@if true ()[]., + ++ += - -- -= = == : := ! != * *= / /= < <= > >= ; range {
+`@if true ()[]., + ++ += - -- -= = == : := ! != * *= / /= < <= > >= ; | || |= & && &= range {
   This is a literal \\\} right here.
 }else if range {} else {}`,
+
+`@if true {
+  Hello.
+  @for a, b, c {
+    ...
+  }
+}`,
 
 `Hi.
 \a\\
@@ -295,4 +302,30 @@ func compileAndValidate(test *testing.T, source string, expect []token) {
   
   fmt.Println("---")
 }
+
+type TestVisitor struct {
+}
+
+func (v *TestVisitor) visitError(t token) {
+  fmt.Printf("ERR: %v\n", t)
+}
+
+func (v *TestVisitor) visitVerbatim(t token) {
+  fmt.Printf("VTM: %v\n", t)
+}
+
+func TestParse(t *testing.T) {
+  var source string
+  
+  source = `Hello, there. @if{}`
+  
+  s := newScanner(source)
+  p := newParser(s, &TestVisitor{})
+  
+  if err := p.parse(); err != nil {
+    t.Error(err)
+  }
+  
+}
+
 

@@ -128,6 +128,8 @@ const (
   tokenLess             = '<'
   tokenGreater          = '>'
   tokenBang             = '!'
+  tokenAmp              = '&'
+  tokenPipe             = '|'
   
   tokenPrefixAdd        = 1 << 16
   tokenInc              = tokenPrefixAdd | '+'
@@ -135,7 +137,13 @@ const (
   tokenPrefixSub        = 1 << 17
   tokenDec              = tokenPrefixSub | '-'
   
-  tokenSuffixEqual      = 1 << 18
+  tokenPrefixAmp        = 1 << 18
+  tokenLogicalAnd       = tokenPrefixAmp | '&'
+  
+  tokenPrefixPipe       = 1 << 19
+  tokenLogicalOr        = tokenPrefixPipe | '|'
+  
+  tokenSuffixEqual      = 1 << 20
   tokenEqual            = tokenSuffixEqual | '='
   tokenAddEqual         = tokenSuffixEqual | '+'
   tokenSubEqual         = tokenSuffixEqual | '-'
@@ -145,6 +153,8 @@ const (
   tokenGreaterEqual     = tokenSuffixEqual | '>'
   tokenNotEqual         = tokenSuffixEqual | '!'
   tokenAssignInfer      = tokenSuffixEqual | ':'
+  tokenLogicalAndEqual  = tokenSuffixEqual | '&'
+  tokenLogicalOrEqual   = tokenSuffixEqual | '|'
   
 )
 
@@ -545,6 +555,28 @@ func metaAction(s *scanner) scannerAction {
         
       case r == '(' || r == ')' || r == '[' || r == ']' || r == '.' || r == ',' || r == ';':
         s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        return metaAction
+        
+      case r == '&':
+        if n := s.next(); n == '=' {
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenSuffixEqual | r), string(r)})
+        }else if n == '&' {
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenPrefixAmp | r), string(r)})
+        }else{
+          s.backup()
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        }
+        return metaAction
+        
+      case r == '|':
+        if n := s.next(); n == '=' {
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenSuffixEqual | r), string(r)})
+        }else if n == '|' {
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenPrefixPipe | r), string(r)})
+        }else{
+          s.backup()
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        }
         return metaAction
         
       case r == '+':

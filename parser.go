@@ -31,28 +31,49 @@
 package ego
 
 import (
-  _ "fmt"
+  "fmt"
 )
+
+/**
+ * A parser visitor
+ */
+type visitor interface {
+  visitError(token)
+  visitVerbatim(token)
+}
 
 /**
  * A parser
  */
 type parser struct {
   scanner   *scanner
+  visitor   visitor
 }
 
 /**
  * Create a parser
  */
-func newParser(s *scanner) *parser {
-  return &parser{s}
+func newParser(s *scanner, v visitor) *parser {
+  return &parser{s, v}
 }
 
 /**
  * Parse
  */
-func (p *parser) parse() {
-  /// ...
+func (p *parser) parse() error {
+  for {
+    t := p.scanner.scan()
+    switch t.which {
+      case tokenEOF:
+        return nil
+      case tokenError:
+        p.visitor.visitError(t)
+      case tokenVerbatim:
+        p.visitor.visitVerbatim(t)
+      default:
+        return fmt.Errorf("Unsupported token: %v", t)
+    }
+  }
 }
 
 
