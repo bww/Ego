@@ -163,6 +163,38 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 5, 0}, tokenEOF, nil},
   })
   
+  source = `@"Hi."{}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 5}, tokenString, "Hi."},
+    token{span{source, 7, 1}, tokenAtem, nil},
+    token{span{source, 8, 0}, tokenEOF, nil},
+  })
+  
+  source = `@if{}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 2}, tokenIf, "if"},
+    token{span{source, 4, 1}, tokenAtem, nil},
+    token{span{source, 5, 0}, tokenEOF, nil},
+  })
+  
+  source = `@else{}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 4}, tokenElse, "else"},
+    token{span{source, 6, 1}, tokenAtem, nil},
+    token{span{source, 7, 0}, tokenEOF, nil},
+  })
+  
+  source = `@for{}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 3}, tokenFor, "for"},
+    token{span{source, 5, 1}, tokenAtem, nil},
+    token{span{source, 6, 0}, tokenEOF, nil},
+  })
+  
 }
 
 func TestBasicMeta(t *testing.T) {
