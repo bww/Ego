@@ -75,12 +75,85 @@ Foo.
   }
   
   for _, e := range sources {
-    compile(t, e)
+    compileAndValidate(t, e, nil)
   }
   
 }
 
-func compile(test *testing.T, source string) {
+func TestBasicEscaping(t *testing.T) {
+  var source string
+  
+  source = `\foo`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 4}, tokenVerbatim, source},
+    token{span{source, 4, 0}, tokenEOF, nil},
+  })
+  
+  source = `\@`
+  compileAndValidate(t, source, []token{
+    token{span{source, 1, 1}, tokenVerbatim, "@"},
+    token{span{source, 2, 0}, tokenEOF, nil},
+  })
+  
+  source = `x\@`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenVerbatim, "x"},
+    token{span{source, 2, 1}, tokenVerbatim, "@"},
+    token{span{source, 3, 0}, tokenEOF, nil},
+  })
+  
+  source = `\\\@`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenVerbatim, "\\"},
+    token{span{source, 3, 1}, tokenVerbatim, "@"},
+    token{span{source, 4, 0}, tokenEOF, nil},
+  })
+  
+  source = `\\\@`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenVerbatim, "\\"},
+    token{span{source, 3, 1}, tokenVerbatim, "@"},
+    token{span{source, 4, 0}, tokenEOF, nil},
+  })
+  
+  source = `\@\\`
+  compileAndValidate(t, source, []token{
+    token{span{source, 1, 1}, tokenVerbatim, "@"},
+    token{span{source, 2, 1}, tokenVerbatim, "\\"},
+    token{span{source, 4, 0}, tokenEOF, nil},
+  })
+  
+  source = `\\`
+  compileAndValidate(t, source, []token{
+    token{span{source, 1, 1}, tokenVerbatim, "\\"},
+    token{span{source, 2, 0}, tokenEOF, nil},
+  })
+  
+  source = `\`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenVerbatim, "\\"},
+    token{span{source, 1, 0}, tokenEOF, nil},
+  })
+  
+  /*
+    sources := []string{
+    `\foo`,
+    `\@`,
+    `x\@`,
+    `\\\@`,
+    `\@\\`,
+    `\\`,
+    `\`,
+  }
+  
+  for _, e := range sources {
+    compileAndValidate(t, e, nil)
+  }
+  */
+  
+}
+
+func compileAndValidate(test *testing.T, source string, expect []token) {
   fmt.Println(source)
   
   c := make(chan token)
@@ -88,10 +161,48 @@ func compile(test *testing.T, source string) {
   go s.scan()
   
   for {
-    if t, ok := <- c; !ok {
+    
+    t, ok := <- c
+    if !ok {
       break
     }else{
       fmt.Println("T", t)
+    }
+    
+    if expect != nil {
+      
+      if len(expect) < 1 {
+        test.Errorf("Unexpected end of tokens")
+        return
+      }
+      
+      e := expect[0]
+      
+      if e.which != t.which {
+        test.Errorf("Unexpected token type (%v != %v)", t.which, e.which)
+        return
+      }
+      
+      if e.span.excerpt() != t.span.excerpt() {
+        test.Errorf("Excerpts do not match (%q != %q)", t.span.excerpt(), e.span.excerpt())
+        return
+      }
+      
+      if e.value != t.value {
+        test.Errorf("Values do not match (%v != %v)", t.value, e.value)
+        return
+      }
+      
+      expect = expect[1:]
+      
+    }
+    
+  }
+  
+  if expect != nil {
+    if len(expect) > 0 {
+      test.Errorf("Unexpected end of input (%d tokens remain)", len(expect))
+      return
     }
   }
   

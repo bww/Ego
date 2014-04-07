@@ -417,17 +417,17 @@ func startAction(s *scanner) scannerAction {
           
         case r == '\\':
           t = span{s.text, s.start, s.index - s.start - 1}    // verbatim up to first '\', ignore second (literal '\')
-          s.emit(token{t, tokenVerbatim, t.String()})
+          s.emit(token{t, tokenVerbatim, t.excerpt()})
           s.ignore()
           
         case r == '@' || r == '{' || r == '}':
           if s.index - 2 > s.start {
             t = span{s.text, s.start, s.index - s.start - 2}  // verbatim up to '\', exclusive (we know the widths of runes '\' and r)
-            s.emit(token{t, tokenVerbatim, t.String()})
+            s.emit(token{t, tokenVerbatim, t.excerpt()})
           }
           
           t = span{s.text, s.index - 1, 1}                    // emit r, continue (literal r)
-          s.emit(token{t, tokenVerbatim, t.String()})
+          s.emit(token{t, tokenVerbatim, t.excerpt()})
           s.ignore()
           
       }
