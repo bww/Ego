@@ -31,38 +31,22 @@
 package ego
 
 import (
-  "fmt"
+  _"fmt"
 )
 
 /**
- * A parser
+ * An AST node
  */
-type parser struct {
-  scanner   *scanner
+type node struct {
+  span      span
+  subnodes  []node
 }
 
 /**
- * Create a parser
+ * A program
  */
-func newParser(s *scanner) *parser {
-  return &parser{s}
-}
-
-/**
- * Parse
- */
-func (p *parser) parse() error {
-  for {
-    t := p.scanner.scan()
-    switch t.which {
-      case tokenEOF:
-        return nil
-      case tokenError:
-      case tokenVerbatim:
-      default:
-        return fmt.Errorf("Unsupported token: %v", t)
-    }
-  }
+type program struct {
+  node
 }
 
 
