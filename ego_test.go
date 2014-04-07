@@ -147,6 +147,22 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 10, 0}, tokenEOF, nil},
   })
   
+  source = `@0xff{}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 4}, tokenNumber, float64(0xff)},
+    token{span{source, 6, 1}, tokenAtem, nil},
+    token{span{source, 7, 0}, tokenEOF, nil},
+  })
+  
+  source = `@07{}`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 2}, tokenNumber, float64(7)},
+    token{span{source, 4, 1}, tokenAtem, nil},
+    token{span{source, 5, 0}, tokenEOF, nil},
+  })
+  
 }
 
 func TestBasicMeta(t *testing.T) {

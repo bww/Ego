@@ -724,7 +724,6 @@ func (s *scanner) scanNumber() (float64, numericType, error) {
   start := s.index
   ch := s.next()
   
-	// isDecimal(ch)
 	if ch == '0' {
 	  
 		// int or float
@@ -740,11 +739,13 @@ func (s *scanner) scanNumber() (float64, numericType, error) {
 				hasMantissa = true
 			}
 			
+			s.backup() // unscan the stop rune
+			
 			if !hasMantissa {
 				return 0, 0, s.errorf(span{s.text, start, s.index - start}, nil, "Illegal hexadecimal number")
 			}
 			
-			if v, err := strconv.ParseInt(s.text[start:s.index], 16, 64); err != nil {
+			if v, err := strconv.ParseInt(s.text[start+2:s.index], 16, 64); err != nil {
 				return 0, 0, s.errorf(span{s.text, start, s.index - start}, err, "Could not parse number")
 			}else{
 			  return float64(v), numericInteger, nil
@@ -755,28 +756,18 @@ func (s *scanner) scanNumber() (float64, numericType, error) {
 			// octal int or float
 			has8or9 := false
 			for isDecimal(ch) {
-				if ch > '7' {
-					has8or9 = true
-				}
+				if ch > '7' { has8or9 = true }
 				ch = s.next()
 			}
 			
-			if ch == '.' || ch == 'e' || ch == 'E' {
-				return 0, 0, s.errorf(span{s.text, start, s.index - start}, nil, "Octal floats are not supported")
-				/*
-				// float
-				ch = s.scanFraction(ch)
-				ch = s.scanExponent(ch)
-				return strconv.ParseFloat(s.text[start:s.index], 64), numericFloat, nil
-				*/
-			}
+			s.backup() // unscan the stop rune
 			
 			// octal int
 			if has8or9 {
 				s.errorf(span{s.text, start, s.index - start}, nil, "Illegal octal number")
 			}
 			
-			if v, err := strconv.ParseInt(s.text[start:s.index], 8, 64); err != nil {
+			if v, err := strconv.ParseInt(s.text[start+1:s.index], 8, 64); err != nil {
 				return 0, 0, s.errorf(span{s.text, start, s.index - start}, err, "Could not parse number")
 			}else{
 			  return float64(v), numericInteger, nil
