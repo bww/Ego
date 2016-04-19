@@ -36,7 +36,11 @@ import (
   "testing"
 )
 
-func TestThis(t *testing.T) {
+func init() {
+  DEBUG_TRACE_TOKEN = true
+}
+
+func _TestThis(t *testing.T) {
   
   sources := []string{
     
@@ -255,41 +259,37 @@ func TestBasicMeta(t *testing.T) {
   
 }
 
-func compileAndValidate(test *testing.T, source string, expect []token) {
+func compileAndValidate(t *testing.T, source string, expect []token) {
   fmt.Println(source)
   
   s := newScanner(source)
   
   for {
     
-    t := s.scan()
-    fmt.Println("T", t)
+    k := s.scan()
+    fmt.Println("T", k)
     
     if expect != nil {
       
       if len(expect) < 1 {
-        test.Errorf("Unexpected end of tokens")
-        fmt.Println("!!!")
+        t.Fatalf("Unexpected end of tokens")
         return
       }
       
       e := expect[0]
       
-      if e.which != t.which {
-        test.Errorf("Unexpected token type (%v != %v) in %v", t.which, e.which, source)
-        fmt.Println("!!!")
+      if e.which != k.which {
+        t.Errorf("Unexpected token type (%v != %v) in %v", k.which, e.which, source)
         return
       }
       
-      if e.span.excerpt() != t.span.excerpt() {
-        test.Errorf("Excerpts do not match (%q != %q) in %v", t.span.excerpt(), e.span.excerpt(), source)
-        fmt.Println("!!!")
+      if e.span.excerpt() != k.span.excerpt() {
+        t.Errorf("Excerpts do not match (%q != %q) in %v", k.span.excerpt(), e.span.excerpt(), source)
         return
       }
       
-      if e.value != t.value {
-        test.Errorf("Values do not match (%v != %v) in %v", t.value, e.value, source)
-        fmt.Println("!!!")
+      if e.value != k.value {
+        t.Errorf("Values do not match (%v != %v) in %v", k.value, e.value, source)
         return
       }
       
@@ -297,9 +297,9 @@ func compileAndValidate(test *testing.T, source string, expect []token) {
       
     }
     
-    if t.which == tokenEOF {
+    if k.which == tokenEOF {
       break
-    }else if t.which == tokenError {
+    }else if k.which == tokenError {
       break
     }
     
@@ -307,8 +307,7 @@ func compileAndValidate(test *testing.T, source string, expect []token) {
   
   if expect != nil {
     if len(expect) > 0 {
-      test.Errorf("Unexpected end of input (%d tokens remain)", len(expect))
-      fmt.Println("!!!")
+      t.Fatalf("Unexpected end of input (%d tokens remain)", len(expect))
       return
     }
   }
@@ -317,18 +316,16 @@ func compileAndValidate(test *testing.T, source string, expect []token) {
 }
 
 func TestParse(t *testing.T) {
-  var source string
-  
-  source = `Hello, there.@if{}`
+  source := `Hello, there.@if true {}`
   
   s := newScanner(source)
   p := newParser(s)
   r := &runtime{os.Stdout}
   
-  if p, err := p.parse(); err != nil {
-    t.Error(err)
-  }else if err := p.exec(r, nil); err != nil {
-    t.Error(err)
+  if g, err := p.parse(); err != nil {
+    t.Fatal(err)
+  }else if err := g.exec(r, nil); err != nil {
+    t.Fatal(err)
   }
   
 }

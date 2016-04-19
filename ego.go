@@ -30,4 +30,5 @@
 
 package ego
 
-
+// trace tokens as a program is parsed
+var DEBUG_TRACE_TOKEN bool

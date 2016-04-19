@@ -39,14 +39,14 @@ import (
  */
 type parser struct {
   scanner   *scanner
-  la        [2]token
+  la        []token
 }
 
 /**
  * Create a parser
  */
 func newParser(s *scanner) *parser {
-  return &parser{scanner:s}
+  return &parser{s, make([]token, 0, 2)}
 }
 
 /**
@@ -57,11 +57,13 @@ func (p *parser) peek(n int) token {
   
   if n < len(p.la) {
     return p.la[n]
-  }else if n >= cap(p.la) {
+  }else if n + 1 > cap(p.la) {
     panic("Look-ahead overrun")
   }
   
-  for i := len(p.la); i < n; i++ {
+  l := len(p.la)
+  p.la = p.la[:n + 1]
+  for i := l; i <= n; i++ {
     t = p.scanner.scan()
     p.la[i] = t
   }
@@ -77,7 +79,11 @@ func (p *parser) next() token {
     return p.scanner.scan()
   }else{
     t := p.la[0]
-    for i := 1; i < len(p.la); i++ { p.la[i-1] = p.la[i] }
+    l := len(p.la)
+    for i := 1; i < l; i++ {
+      p.la[i-1] = p.la[i]
+    }
+    p.la = p.la[:l-1]
     return t
   }
 }
@@ -90,6 +96,9 @@ func (p *parser) parse() (*program, error) {
   
   for {
     t := p.next()
+    if DEBUG_TRACE_TOKEN {
+      fmt.Printf("parse:t0: %+v\n", t)
+    }
     switch t.which {
       
       case tokenEOF:
@@ -99,7 +108,7 @@ func (p *parser) parse() (*program, error) {
         return nil, fmt.Errorf("Error: %v", t)
         
       case tokenVerbatim:
-        prog.add(&verbatimNode{node{t.span, &t, nil}})
+        prog.add(&verbatimNode{node{t.span, &t}})
         
       case tokenMeta:
         if n, err := p.parseMeta(); err != nil {
@@ -119,23 +128,31 @@ func (p *parser) parse() (*program, error) {
 /**
  * Parse
  */
-func (p *parser) parseMeta() (*node, error) {
-  out := &metaNode{}
+func (p *parser) parseMeta() (executable, error) {
   t := p.next()
+  if DEBUG_TRACE_TOKEN {
+    fmt.Printf("meta:t0: %+v\n", t)
+  }
   switch t.which {
     
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+      
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", t)
+      
     case tokenIf:
-      if n, err := p.parseIf(); err != nil {
+      if n, err := p.parseIf(t); err != nil {
         return nil, err
       }else{
-        return out.add(n), nil
+        return &metaNode{node{t.span, &t}, n}, nil
       }
       
     case tokenFor:
-      if n, err := p.parseFor(); err != nil {
+      if n, err := p.parseFor(t); err != nil {
         return nil, err
       }else{
-        return out.add(n), nil
+        return &metaNode{node{t.span, &t}, n}, nil
       }
       
     default:
@@ -147,37 +164,262 @@ func (p *parser) parseMeta() (*node, error) {
 /**
  * Parse
  */
-func (p *parser) parseIf() (*node, error) {
-  out := &ifNode{}
+func (p *parser) parseIf(t token) (executable, error) {
   if n, err := p.parseExpression(); err != nil {
     return nil, err
   }else{
-    return out.add(n), nil
+    return &ifNode{node{t.span, &t}, n}, nil
   }
 }
 
 /**
  * Parse
  */
-func (p *parser) parseFor() (*node, error) {
+func (p *parser) parseFor(t token) (executable, error) {
   return nil, nil
 }
 
 /**
  * Parse
  */
-func (p *parser) parseExpression() (*node, error) {
-  out := &exprNode{}
-  //t0 := p.peek(0)
-  t1 := p.peek(1)
-  
-  switch t1.which {
-    case tokenBlock: // end of meta
-    default:
-      return nil, fmt.Errorf("Illegal token in expression: %v", t1)
-  }
-  
-  return out.add(nil), nil
+func (p *parser) parseExpression() (expression, error) {
+  return p.parseLogicalOr()
 }
 
+/**
+ * Parse a logical or
+ */
+func (p *parser) parseLogicalOr() (expression, error) {
+  
+  left, err := p.parseLogicalAnd()
+  if err != nil {
+    return nil, err
+  }
+  
+  op := p.peek(0)
+  switch op.which {
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", op)
+    case tokenLogicalOr:
+      break // valid token
+    default:
+      return left, nil
+  }
+  
+  p.next() // consume the operator
+  right, err := p.parseLogicalOr()
+  if err != nil {
+    return nil, err
+  }
+  
+  return &logicalOrNode{node{}, left, right}, nil
+}
+
+/**
+ * Parse a logical and
+ */
+func (p *parser) parseLogicalAnd() (expression, error) {
+  
+  left, err := p.parseRelational()
+  if err != nil {
+    return nil, err
+  }
+  
+  op := p.peek(0)
+  switch op.which {
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", op)
+    case tokenLogicalAnd:
+      break // valid token
+    default:
+      return left, nil
+  }
+  
+  p.next() // consume the operator
+  right, err := p.parseLogicalAnd()
+  if err != nil {
+    return nil, err
+  }
+  
+  return &logicalAndNode{node{}, left, right}, nil
+}
+
+/**
+ * Parse a relational expression
+ */
+func (p *parser) parseRelational() (expression, error) {
+  
+  left, err := p.parseArithmeticL1()
+  if err != nil {
+    return nil, err
+  }
+  
+  op := p.peek(0)
+  switch op.which {
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", op)
+    case tokenLess, tokenGreater, tokenEqual, tokenLessEqual, tokenGreaterEqual, tokenNotEqual:
+      break // valid tokens
+    default:
+      return left, nil
+  }
+  
+  p.next() // consume the operator
+  right, err := p.parseRelational()
+  if err != nil {
+    return nil, err
+  }
+  
+  return &relationalNode{node{}, op, left, right}, nil
+}
+
+/**
+ * Parse an arithmetic expression
+ */
+func (p *parser) parseArithmeticL1() (expression, error) {
+  
+  left, err := p.parseArithmeticL2()
+  if err != nil {
+    return nil, err
+  }
+  
+  op := p.peek(0)
+  switch op.which {
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", op)
+    case tokenAdd, tokenSub:
+      break // valid tokens
+    default:
+      return left, nil
+  }
+  
+  p.next() // consume the operator
+  right, err := p.parseArithmeticL1()
+  if err != nil {
+    return nil, err
+  }
+  
+  return &arithmeticNode{node{}, op, left, right}, nil
+}
+
+/**
+ * Parse an arithmetic expression
+ */
+func (p *parser) parseArithmeticL2() (expression, error) {
+  
+  left, err := p.parseDeref()
+  if err != nil {
+    return nil, err
+  }
+  
+  op := p.peek(0)
+  switch op.which {
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", op)
+    case tokenMul, tokenDiv, tokenMod:
+      break // valid tokens
+    default:
+      return left, nil
+  }
+  
+  p.next() // consume the operator
+  right, err := p.parseArithmeticL2()
+  if err != nil {
+    return nil, err
+  }
+  
+  return &arithmeticNode{node{}, op, left, right}, nil
+}
+
+/**
+ * Parse a deref expression
+ */
+func (p *parser) parseDeref() (expression, error) {
+  
+  left, err := p.parsePrimary()
+  if err != nil {
+    return nil, err
+  }
+  
+  op := p.peek(0)
+  switch op.which {
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", op)
+    case tokenDot:
+      break // valid token
+    default:
+      return left, nil
+  }
+  
+  p.next() // consume the operator
+  right, err := p.parseDeref()
+  if err != nil {
+    return nil, err
+  }
+  
+  switch v := right.(type) {
+    case *identNode, *derefNode:
+      return &derefNode{node{}, left, v}, nil
+    default:
+      return nil, fmt.Errorf("Expected identifier: %v (%T)", right)
+  }
+  
+}
+
+/**
+ * Parse a primary expression
+ */
+func (p *parser) parsePrimary() (expression, error) {
+  t := p.next()
+  switch t.which {
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", t)
+    case tokenLParen:
+      return p.parseParen()
+    case tokenIdentifier:
+      return &identNode{node{}, t.value.(string)}, nil
+    case tokenNumber, tokenString:
+      return &literalNode{node{}, t.value}, nil
+    case tokenTrue:
+      return &literalNode{node{}, true}, nil
+    case tokenFalse:
+      return &literalNode{node{}, false}, nil
+    case tokenNil:
+      return &literalNode{node{}, nil}, nil
+    default:
+      return nil, fmt.Errorf("Illegal token in primary expression: %v", t)
+  }
+}
+
+/**
+ * Parse a (sub-expression)
+ */
+func (p *parser) parseParen() (expression, error) {
+  
+  e, err := p.parseExpression()
+  if err != nil {
+    return nil, err
+  }
+  
+  t := p.next()
+  if t.which != tokenRParen {
+    return nil, fmt.Errorf("Expected ')' but found %v", t)
+  }
+  
+  return e, nil
+}
 

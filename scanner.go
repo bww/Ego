@@ -125,6 +125,7 @@ const (
   tokenSub              = '-'
   tokenMul              = '*'
   tokenDiv              = '/'
+  tokenMod              = '%'
   tokenAssign           = '='
   tokenLess             = '<'
   tokenGreater          = '>'
@@ -289,7 +290,11 @@ func (s *scanner) scan() token {
       case t := <- s.tokens:
         return t
       default:
-        s.state = s.state(s)
+        if s.state == nil {
+          return token{span{s.text, len(s.text), 0}, tokenEOF, nil}
+        }else{
+          s.state = s.state(s)
+        }
     }
   }
 }
