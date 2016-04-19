@@ -661,9 +661,13 @@ func closeAction(s *scanner) scannerAction {
   s.next()  // skip the '}' delimiter
   s.depth-- // decrement the meta depth
   
-  if f := s.findFrom(s.index + 1, " \n\r\t\v", true); s.matchAt(f, "else") {
+  f := s.findFrom(s.index + 1, " \n\r\t\v", true)
+  if s.matchAt(f, "else") {
     s.move(f)
     return identifierAction
+  }else if s.matchAt(f, "\\else") {
+    // move past the \ escape, which should be ignored in this specific case
+    s.move(f+1)
   }
   
   return startAction

@@ -252,7 +252,6 @@ func (p *parser) parseIf(t token) (executable, error) {
   }
   
   if iffalse != nil {
-    fmt.Println("FOO", encompass(t.span, cond.src(), iftrue.src(), iffalse.src()).excerpt())
     return &ifNode{node{encompass(t.span, cond.src(), iftrue.src(), iffalse.src()), &t}, cond}, nil
   }else{
     return &ifNode{node{encompass(t.span, cond.src(), iftrue.src()), &t}, cond}, nil

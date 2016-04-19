@@ -316,19 +316,27 @@ func compileAndValidate(t *testing.T, source string, expect []token) {
 }
 
 func TestParse(t *testing.T) {
-  source := `Hello, there.@if true {
-    This is verbatim.
-    @if false {} else {}
-  }`
   
-  s := newScanner(source)
-  p := newParser(s)
-  r := &runtime{os.Stdout}
+  sources := []string{
+    `Hello, there.@if true {
+      This is verbatim.
+      @if false {} else {}
+    }`,
+    `Hello, there.@if true {
+      This is verbatim.
+      @if false {} \else not really
+    }`,
+  }
   
-  if g, err := p.parse(); err != nil {
-    t.Fatal(err)
-  }else if err := g.exec(r, nil); err != nil {
-    t.Fatal(err)
+  for _, source := range sources {
+    s := newScanner(source)
+    p := newParser(s)
+    r := &runtime{os.Stdout}
+    if g, err := p.parse(); err != nil {
+      t.Fatal(err)
+    }else if err := g.exec(r, nil); err != nil {
+      t.Fatal(err)
+    }
   }
   
 }
