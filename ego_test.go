@@ -148,7 +148,7 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 3}, tokenNumber, float64(123)},
     token{span{source, 4, 1}, tokenBlock, nil},
-    token{span{source, 5, 1}, tokenAtem, nil},
+    token{span{source, 5, 1}, tokenClose, nil},
     token{span{source, 6, 0}, tokenEOF, nil},
   })
   
@@ -157,7 +157,7 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 7}, tokenNumber, float64(123.456)},
     token{span{source, 8, 1}, tokenBlock, nil},
-    token{span{source, 9, 1}, tokenAtem, nil},
+    token{span{source, 9, 1}, tokenClose, nil},
     token{span{source, 10, 0}, tokenEOF, nil},
   })
   
@@ -166,7 +166,7 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 4}, tokenNumber, float64(0xff)},
     token{span{source, 5, 1}, tokenBlock, nil},
-    token{span{source, 6, 1}, tokenAtem, nil},
+    token{span{source, 6, 1}, tokenClose, nil},
     token{span{source, 7, 0}, tokenEOF, nil},
   })
   
@@ -175,7 +175,7 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 2}, tokenNumber, float64(7)},
     token{span{source, 3, 1}, tokenBlock, nil},
-    token{span{source, 4, 1}, tokenAtem, nil},
+    token{span{source, 4, 1}, tokenClose, nil},
     token{span{source, 5, 0}, tokenEOF, nil},
   })
   
@@ -184,7 +184,7 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 5}, tokenString, "Hi."},
     token{span{source, 6, 1}, tokenBlock, nil},
-    token{span{source, 7, 1}, tokenAtem, nil},
+    token{span{source, 7, 1}, tokenClose, nil},
     token{span{source, 8, 0}, tokenEOF, nil},
   })
   
@@ -193,7 +193,7 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 4}, tokenTrue, "true"},
     token{span{source, 5, 1}, tokenBlock, nil},
-    token{span{source, 6, 1}, tokenAtem, nil},
+    token{span{source, 6, 1}, tokenClose, nil},
     token{span{source, 7, 0}, tokenEOF, nil},
   })
   
@@ -202,7 +202,7 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 5}, tokenFalse, "false"},
     token{span{source, 6, 1}, tokenBlock, nil},
-    token{span{source, 7, 1}, tokenAtem, nil},
+    token{span{source, 7, 1}, tokenClose, nil},
     token{span{source, 8, 0}, tokenEOF, nil},
   })
   
@@ -211,7 +211,7 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 3}, tokenNil, nil},
     token{span{source, 4, 1}, tokenBlock, nil},
-    token{span{source, 5, 1}, tokenAtem, nil},
+    token{span{source, 5, 1}, tokenClose, nil},
     token{span{source, 6, 0}, tokenEOF, nil},
   })
   
@@ -220,7 +220,7 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 2}, tokenIf, "if"},
     token{span{source, 3, 1}, tokenBlock, nil},
-    token{span{source, 4, 1}, tokenAtem, nil},
+    token{span{source, 4, 1}, tokenClose, nil},
     token{span{source, 5, 0}, tokenEOF, nil},
   })
   
@@ -229,7 +229,7 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 4}, tokenElse, "else"},
     token{span{source, 5, 1}, tokenBlock, nil},
-    token{span{source, 6, 1}, tokenAtem, nil},
+    token{span{source, 6, 1}, tokenClose, nil},
     token{span{source, 7, 0}, tokenEOF, nil},
   })
   
@@ -238,7 +238,7 @@ func TestBasicTypes(t *testing.T) {
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 3}, tokenFor, "for"},
     token{span{source, 4, 1}, tokenBlock, nil},
-    token{span{source, 5, 1}, tokenAtem, nil},
+    token{span{source, 5, 1}, tokenClose, nil},
     token{span{source, 6, 0}, tokenEOF, nil},
   })
   
@@ -253,7 +253,7 @@ func TestBasicMeta(t *testing.T) {
     token{span{source, 1, 2}, tokenIf, "if"},
     token{span{source, 4, 4}, tokenTrue, "true"},
     token{span{source, 9, 1}, tokenBlock, nil},
-    token{span{source, 10, 1}, tokenAtem, nil},
+    token{span{source, 10, 1}, tokenClose, nil},
     token{span{source, 11, 0}, tokenEOF, nil},
   })
   
@@ -316,7 +316,10 @@ func compileAndValidate(t *testing.T, source string, expect []token) {
 }
 
 func TestParse(t *testing.T) {
-  source := `Hello, there.@if true {}`
+  source := `Hello, there.@if true {
+    This is verbatim.
+    @if false {} else {}
+  }`
   
   s := newScanner(source)
   p := newParser(s)

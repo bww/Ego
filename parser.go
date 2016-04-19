@@ -111,14 +111,14 @@ func (p *parser) parse() (*program, error) {
         prog.add(&verbatimNode{node{t.span, &t}})
         
       case tokenMeta:
-        if n, err := p.parseMeta(); err != nil {
+        if n, err := p.parseMeta(t); err != nil {
           return nil, err
         }else{
           prog.add(n)
         }
         
       default:
-        return nil, fmt.Errorf("Unsupported token: %v", t)
+        return nil, invalidTokenError(t, tokenVerbatim, tokenMeta, tokenEOF)
         
     }
   }
@@ -128,8 +128,8 @@ func (p *parser) parse() (*program, error) {
 /**
  * Parse
  */
-func (p *parser) parseMeta() (executable, error) {
-  t := p.next()
+func (p *parser) parseMeta(t token) (executable, error) {
+  t = p.next()
   if DEBUG_TRACE_TOKEN {
     fmt.Printf("meta:t0: %+v\n", t)
   }
@@ -156,19 +156,106 @@ func (p *parser) parseMeta() (executable, error) {
       }
       
     default:
-      return nil, fmt.Errorf("Illegal token in meta: %v", t)
+      return nil, invalidTokenError(t, tokenIf, tokenFor)
       
   }
+}
+
+/**
+ * Parse a block containing verbatim and meta content
+ */
+func (p *parser) parseBlock(t token) (executable, error) {
+  b := &containerNode{}
+  
+  outer: for {
+    t := p.next()
+    if DEBUG_TRACE_TOKEN {
+      fmt.Printf("block:t0: %+v\n", t)
+    }
+    switch t.which {
+      
+      case tokenEOF:
+        return nil, fmt.Errorf("Unexpected end-of-input")
+        
+      case tokenError:
+        return nil, fmt.Errorf("Error: %v", t)
+        
+      case tokenClose:
+        break outer // close the block
+        
+      case tokenVerbatim:
+        b.add(&verbatimNode{node{t.span, &t}})
+        
+      case tokenMeta:
+        if n, err := p.parseMeta(t); err != nil {
+          return nil, err
+        }else{
+          b.add(n)
+        }
+        
+      default:
+        return nil, invalidTokenError(t, tokenVerbatim, tokenMeta)
+        
+    }
+  }
+  
+  return b, nil
 }
 
 /**
  * Parse
  */
 func (p *parser) parseIf(t token) (executable, error) {
-  if n, err := p.parseExpression(); err != nil {
+  
+  cond, err := p.parseExpression()
+  if err != nil {
     return nil, err
+  }
+  
+  t = p.next()
+  switch t.which {
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", t)
+    case tokenBlock:
+      break // valid token
+    default:
+      return nil, invalidTokenError(t, tokenBlock)
+  }
+  
+  iftrue, err := p.parseBlock(t)
+  if err != nil {
+    return nil, err
+  }
+  
+  var iffalse executable
+  t = p.peek(0)
+  if t.which == tokenElse {
+    p.next(); t = p.next()
+    
+    switch t.which {
+      case tokenEOF:
+        return nil, fmt.Errorf("Unexpected end-of-input")
+      case tokenError:
+        return nil, fmt.Errorf("Error: %v", t)
+      case tokenBlock:
+        break // valid token
+      default:
+        return nil, invalidTokenError(t, tokenBlock)
+    }
+    
+    iffalse, err = p.parseBlock(t)
+    if err != nil {
+      return nil, err
+    }
+  }
+  
+  if iffalse != nil {
+    fmt.Println("FOO", encompass(t.span, cond.src(), iftrue.src(), iffalse.src()).excerpt())
+    return &ifNode{node{encompass(t.span, cond.src(), iftrue.src(), iffalse.src()), &t}, cond}, nil
   }else{
-    return &ifNode{node{t.span, &t}, n}, nil
+    return &ifNode{node{encompass(t.span, cond.src(), iftrue.src()), &t}, cond}, nil
   }
 }
 
@@ -421,5 +508,43 @@ func (p *parser) parseParen() (expression, error) {
   }
   
   return e, nil
+}
+
+/**
+ * A parser error
+ */
+type parserError struct {
+  message   string
+  span      span
+  cause     error
+}
+
+/**
+ * Error
+ */
+func (e parserError) Error() string {
+  if e.cause != nil {
+    return fmt.Sprintf("@[%d+%d] %s: %v\n%v", e.span.offset, e.span.length, e.message, e.cause, e.span.excerpt())
+  }else{
+    return fmt.Sprintf("@[%d+%d] %s\n%v", e.span.offset, e.span.length, e.message, e.span.excerpt())
+  }
+}
+
+/**
+ * Invalid token error
+ */
+func invalidTokenError(t token, e ...tokenType) error {
+  
+  m := fmt.Sprintf("Invalid token: %v", t.which)
+  if e != nil && len(e) > 0 {
+    m += " (expected: "
+    for i, t := range e {
+      if i > 0 { m += ", " }
+      m += fmt.Sprintf("%v", t)
+    }
+    m += ")"
+  }
+  
+  return &parserError{m, t.span, nil}
 }
 

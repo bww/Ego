@@ -75,13 +75,15 @@ func (s span) String() string {
 }
 
 /**
- * Create a new span that encompasses all the provided spans.
+ * Create a new span that encompasses all the provided spans. The underlying text is taken from the first span.
  */
 func encompass(a ...span) span {
+  var t string
   min, max := 0, 0
   for i, e := range a {
     if i == 0 {
       min, max = e.offset, e.offset + e.length
+      t = e.text
     }else{
       if e.offset < min {
         min = e.offset
@@ -91,7 +93,7 @@ func encompass(a ...span) span {
       }
     }
   }
-  return span{"<encompass>", min, max - min}
+  return span{t, min, max - min}
 }
 
 /**
@@ -119,6 +121,7 @@ const (
   tokenVerbatim
   tokenMeta
   tokenBlock
+  tokenClose
   tokenAtem
   
   tokenString
@@ -194,7 +197,9 @@ func (t tokenType) String() string {
     case tokenMeta:
       return "@"
     case tokenBlock:
-      return "{...}"
+      return "{..."
+    case tokenClose:
+      return "...}"
     case tokenAtem:
       return "#"
     case tokenString:
@@ -284,13 +289,13 @@ func (s *scannerError) Error() string {
  * A scanner
  */
 type scanner struct {
-  text      string
-  index     int
-  width     int // current rune width
-  start     int // token start position
-  depth     int // meta depth
-  tokens    chan token
-  state     scannerAction
+  text    string
+  index   int
+  width   int // current rune width
+  start   int // token start position
+  depth   int // meta depth
+  tokens  chan token
+  state   scannerAction
 }
 
 /**
@@ -380,13 +385,11 @@ func (s *scanner) match(text string) bool {
  */
 func (s *scanner) matchAt(index int, text string) bool {
   i := index
-  
   if i < 0 {
     return false
   }
   
   for n := 0; n < len(text); {
-    
     if i >= len(s.text) {
       return false
     }
@@ -399,7 +402,6 @@ func (s *scanner) matchAt(index int, text string) bool {
     if r != c {
       return false
     }
-    
   }
   
   return true
@@ -436,6 +438,13 @@ func (s *scanner) findFrom(index int, any string, invert bool) int {
  */
 func (s *scanner) ignore() {
   s.start = s.index
+}
+
+/**
+ * Move directly to an index
+ */
+func (s *scanner) move(index int) {
+  s.start, s.index = index, index
 }
 
 /**
@@ -481,12 +490,7 @@ func startAction(s *scanner) scannerAction {
           if s.index > s.start {
             s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
           }
-          if from := s.findFrom(s.index + 1, " \n\r\t\v", true); s.matchAt(from, "else") {
-            s.next(); s.ignore() // consume the '}' token
-            return metaAction
-          }else{
-            return finalizeAction
-          }
+          return closeAction
           
       }
     }
@@ -648,12 +652,20 @@ func blockAction(s *scanner) scannerAction {
 }
 
 /**
- * Finalize action. This closes a meta expression or control structure.
+ * Close a block. This closes a meta expression or control structure. As a special case, the
+ * dangling 'else' following what is otherwise a closed structure begins a new block.
  */
-func finalizeAction(s *scanner) scannerAction {
-  s.emit(token{span{s.text, s.index, 1}, tokenAtem, nil})
+func closeAction(s *scanner) scannerAction {
+  
+  s.emit(token{span{s.text, s.index, 1}, tokenClose, nil})
   s.next()  // skip the '}' delimiter
   s.depth-- // decrement the meta depth
+  
+  if f := s.findFrom(s.index + 1, " \n\r\t\v", true); s.matchAt(f, "else") {
+    s.move(f)
+    return identifierAction
+  }
+  
   return startAction
 }
 
