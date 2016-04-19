@@ -75,6 +75,26 @@ func (s span) String() string {
 }
 
 /**
+ * Create a new span that encompasses all the provided spans.
+ */
+func encompass(a ...span) span {
+  min, max := 0, 0
+  for i, e := range a {
+    if i == 0 {
+      min, max = e.offset, e.offset + e.length
+    }else{
+      if e.offset < min {
+        min = e.offset
+      }
+      if e.offset + e.length > max {
+        max = e.offset + e.length
+      }
+    }
+  }
+  return span{"<encompass>", min, max - min}
+}
+
+/**
  * Numeric type
  */
 type numericType int

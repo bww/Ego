@@ -107,6 +107,7 @@ type runtime struct {
  * Executable
  */
 type executable interface {
+  src()(span)
   exec(*runtime, *context) error
 }
 
@@ -114,6 +115,7 @@ type executable interface {
  * An expression
  */
 type expression interface {
+  src()(span)
   exec(*runtime, *context)(interface{}, error)
 }
 
@@ -123,6 +125,13 @@ type expression interface {
 type node struct {
   span      span
   token     *token
+}
+
+/**
+ * Obtain the node src span
+ */
+func (n node) src() span {
+  return n.span
 }
 
 /**

@@ -214,7 +214,7 @@ func (p *parser) parseLogicalOr() (expression, error) {
     return nil, err
   }
   
-  return &logicalOrNode{node{}, left, right}, nil
+  return &logicalOrNode{node{encompass(op.span, left.src(), right.src()), &op}, left, right}, nil
 }
 
 /**
@@ -245,7 +245,7 @@ func (p *parser) parseLogicalAnd() (expression, error) {
     return nil, err
   }
   
-  return &logicalAndNode{node{}, left, right}, nil
+  return &logicalAndNode{node{encompass(op.span, left.src(), right.src()), &op}, left, right}, nil
 }
 
 /**
@@ -276,7 +276,7 @@ func (p *parser) parseRelational() (expression, error) {
     return nil, err
   }
   
-  return &relationalNode{node{}, op, left, right}, nil
+  return &relationalNode{node{encompass(op.span, left.src(), right.src()), &op}, op, left, right}, nil
 }
 
 /**
@@ -307,7 +307,7 @@ func (p *parser) parseArithmeticL1() (expression, error) {
     return nil, err
   }
   
-  return &arithmeticNode{node{}, op, left, right}, nil
+  return &arithmeticNode{node{encompass(op.span, left.src(), right.src()), &op}, op, left, right}, nil
 }
 
 /**
@@ -338,7 +338,7 @@ func (p *parser) parseArithmeticL2() (expression, error) {
     return nil, err
   }
   
-  return &arithmeticNode{node{}, op, left, right}, nil
+  return &arithmeticNode{node{encompass(op.span, left.src(), right.src()), &op}, op, left, right}, nil
 }
 
 /**
@@ -371,7 +371,7 @@ func (p *parser) parseDeref() (expression, error) {
   
   switch v := right.(type) {
     case *identNode, *derefNode:
-      return &derefNode{node{}, left, v}, nil
+      return &derefNode{node{encompass(op.span, left.src()), &op}, left, v}, nil
     default:
       return nil, fmt.Errorf("Expected identifier: %v (%T)", right)
   }
@@ -391,15 +391,15 @@ func (p *parser) parsePrimary() (expression, error) {
     case tokenLParen:
       return p.parseParen()
     case tokenIdentifier:
-      return &identNode{node{}, t.value.(string)}, nil
+      return &identNode{node{t.span, &t}, t.value.(string)}, nil
     case tokenNumber, tokenString:
-      return &literalNode{node{}, t.value}, nil
+      return &literalNode{node{t.span, &t}, t.value}, nil
     case tokenTrue:
-      return &literalNode{node{}, true}, nil
+      return &literalNode{node{t.span, &t}, true}, nil
     case tokenFalse:
-      return &literalNode{node{}, false}, nil
+      return &literalNode{node{t.span, &t}, false}, nil
     case tokenNil:
-      return &literalNode{node{}, nil}, nil
+      return &literalNode{node{t.span, &t}, nil}, nil
     default:
       return nil, fmt.Errorf("Illegal token in primary expression: %v", t)
   }
