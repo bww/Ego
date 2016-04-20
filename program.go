@@ -215,14 +215,61 @@ func (n *metaNode) exec(runtime *runtime, context *context) error {
 type ifNode struct {
   node
   condition expression
+  iftrue    executable
+  iffalse   executable
 }
 
 /**
  * Execute
  */
 func (n *ifNode) exec(runtime *runtime, context *context) error {
-  fmt.Println("exec:if")
+  
+  res, err := n.condition.exec(runtime, context)
+  if err != nil {
+    return err
+  }
+  
+  var istrue bool
+  switch v := res.(type) {
+    case bool:
+      istrue = v
+    default:
+      return fmt.Errorf("Invalid type: %T", v)
+  }
+  
+  if istrue {
+    return n.iftrue.exec(runtime, context)
+  }else if n.iffalse != nil {
+    return n.iffalse.exec(runtime, context)
+  }
+  
   return nil
+}
+
+/**
+ * A logical NOT node
+ */
+type logicalNotNode struct {
+  node
+  right expression
+}
+
+/**
+ * Execute
+ */
+func (n *logicalNotNode) exec(runtime *runtime, context *context) (interface{}, error) {
+  
+  rvi, err := n.right.exec(runtime, context)
+  if err != nil {
+    return nil, err
+  }
+  
+  rv, err := asBool(rvi)
+  if err != nil {
+    return nil, err
+  }
+  
+  return !rv, nil
 }
 
 /**
@@ -578,3 +625,24 @@ func derefValue(value reflect.Value) (reflect.Value, int) {
   }
   return v, c
 }
+
+/**
+ * A runtime error
+ */
+type runtimeError struct {
+  message   string
+  span      span
+  cause     error
+}
+
+/**
+ * Error
+ */
+func (e runtimeError) Error() string {
+  if e.cause != nil {
+    return fmt.Sprintf("@[%d+%d] %s: %v\n%v", e.span.offset, e.span.length, e.message, e.cause, e.span.excerpt())
+  }else{
+    return fmt.Sprintf("@[%d+%d] %s\n%v", e.span.offset, e.span.length, e.message, e.span.excerpt())
+  }
+}
+

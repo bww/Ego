@@ -1,0 +1,33 @@
+
+test {
+  
+  context = {
+    A = true
+  }
+  
+  source = <<SOURCE
+    @if A { This is displayed if A is true, which it is. } else { Otherwise this. }
+SOURCE
+  
+  expect = <<RESULT
+     This is displayed if A is true, which it is. 
+RESULT
+  
+}
+
+test {
+  
+  context = {
+    A = true
+  }
+  
+  source = <<SOURCE
+    @if !A { This is displayed if A is not true, which it is not. } else { Otherwise this is displayed. }
+SOURCE
+  
+  expect = <<RESULT
+     Otherwise this is displayed. 
+RESULT
+  
+}
+

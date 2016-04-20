@@ -145,14 +145,21 @@ func (p *parser) parseMeta(t token) (executable, error) {
       if n, err := p.parseIf(t); err != nil {
         return nil, err
       }else{
-        return &metaNode{node{t.span, &t}, n}, nil
+        return n, nil
       }
       
     case tokenFor:
       if n, err := p.parseFor(t); err != nil {
         return nil, err
       }else{
-        return &metaNode{node{t.span, &t}, n}, nil
+        return n, nil
+      }
+      
+    case tokenBlock:
+      if n, err := p.parseBlock(t); err != nil {
+        return nil, err
+      }else{
+        return n, nil
       }
       
     default:
@@ -232,29 +239,17 @@ func (p *parser) parseIf(t token) (executable, error) {
   var iffalse executable
   t = p.peek(0)
   if t.which == tokenElse {
-    p.next(); t = p.next()
-    
-    switch t.which {
-      case tokenEOF:
-        return nil, fmt.Errorf("Unexpected end-of-input")
-      case tokenError:
-        return nil, fmt.Errorf("Error: %v", t)
-      case tokenBlock:
-        break // valid token
-      default:
-        return nil, invalidTokenError(t, tokenBlock)
-    }
-    
-    iffalse, err = p.parseBlock(t)
+    p.next() // consume 'else'
+    iffalse, err = p.parseMeta(t)
     if err != nil {
       return nil, err
     }
   }
   
   if iffalse != nil {
-    return &ifNode{node{encompass(t.span, cond.src(), iftrue.src(), iffalse.src()), &t}, cond}, nil
+    return &ifNode{node{encompass(t.span, cond.src(), iftrue.src(), iffalse.src()), &t}, cond, iftrue, iffalse}, nil
   }else{
-    return &ifNode{node{encompass(t.span, cond.src(), iftrue.src()), &t}, cond}, nil
+    return &ifNode{node{encompass(t.span, cond.src(), iftrue.src()), &t}, cond, iftrue, iffalse}, nil
   }
 }
 
@@ -269,7 +264,36 @@ func (p *parser) parseFor(t token) (executable, error) {
  * Parse
  */
 func (p *parser) parseExpression() (expression, error) {
-  return p.parseLogicalOr()
+  return p.parseLogicalNot()
+}
+
+/**
+ * Parse a logical not
+ */
+func (p *parser) parseLogicalNot() (expression, error) {
+  var t token
+  
+  op := p.peek(0)
+  switch op.which {
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", op)
+    case tokenBang:
+      t = p.next() // consume the '!'
+      break // valid token
+  }
+  
+  right, err := p.parseLogicalOr()
+  if err != nil {
+    return nil, err
+  }
+  
+  if t.which == tokenBang {
+    return &logicalNotNode{node{encompass(op.span, right.src()), &op}, right}, nil
+  }else{
+    return right, nil
+  }
 }
 
 /**

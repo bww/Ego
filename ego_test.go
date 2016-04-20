@@ -33,11 +33,97 @@ package ego
 import (
   "os"
   "fmt"
+  "path"
+  "bytes"
+  "strings"
   "testing"
+  "io/ioutil"
+)
+
+import (
+  "github.com/bww/hcl"
+  "github.com/stretchr/testify/assert"
 )
 
 func init() {
   DEBUG_TRACE_TOKEN = true
+}
+
+type testCase struct {
+  Source  string                  `hcl:"source"`
+  Expect  string                  `hcl:"expect"`
+  Context map[string]interface{}  `hcl:"context"`
+}
+
+/**
+ * Test everything
+ */
+func TestAll(t *testing.T) {
+  
+  proj := os.Getenv("PROJECT")
+  if !assert.True(t, len(proj) > 0, "No project root") { return }
+  
+  dir, err := os.Open(path.Join(proj, "tests"))
+  if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
+  
+  every, err := dir.Readdir(1000)
+  if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
+  
+  var filter map[string]struct{}
+  which := os.Getenv("EGO_TESTS")
+  if which != "" {
+    f := strings.Fields(which)
+    if len(f) > 0 {
+      filter = make(map[string]struct{})
+      for _, e := range f {
+        filter[e + ".test"] = struct{}{}
+      }
+    }
+  }
+  
+  for _, f := range every {
+    var tests []testCase
+    
+    if filter != nil {
+      if _, ok := filter[f.Name()]; !ok {
+        t.Logf("===> %v (skip)", f.Name())
+        continue
+      }
+    }
+    
+    t.Logf("===> %v", f.Name())
+    
+    file, err := os.Open(path.Join(proj, "tests", f.Name()))
+    if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
+    
+    data, err := ioutil.ReadAll(file)
+    if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
+    
+    err = hcl.Decode(&tests, string(data))
+    if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
+    
+    for _, e := range tests {
+      
+      output  := &bytes.Buffer{}
+      scanner := newScanner(e.Source)
+      parser  := newParser(scanner)
+      runtime := &runtime{output}
+      
+      program, err := parser.parse()
+      if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { continue }
+      
+      err = program.exec(runtime, newContext(e.Context))
+      if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { continue }
+      
+      fmt.Printf("--> %v\n", e.Source)
+      fmt.Printf("<-- %v\n", string(output.Bytes()))
+      
+      assert.Equal(t, e.Expect, string(output.Bytes()), "Expected output and actual output differ")
+      
+    }
+    
+  }
+  
 }
 
 func _TestThis(t *testing.T) {
@@ -84,7 +170,7 @@ Foo.
   
 }
 
-func TestBasicEscaping(t *testing.T) {
+func _TestBasicEscaping(t *testing.T) {
   var source string
   
   source = `\foo`
@@ -140,7 +226,7 @@ func TestBasicEscaping(t *testing.T) {
   
 }
 
-func TestBasicTypes(t *testing.T) {
+func _TestBasicTypes(t *testing.T) {
   var source string
   
   source = `@123{}`
@@ -244,7 +330,7 @@ func TestBasicTypes(t *testing.T) {
   
 }
 
-func TestBasicMeta(t *testing.T) {
+func _TestBasicMeta(t *testing.T) {
   var source string
   
   source = `@if true {}`
@@ -315,12 +401,32 @@ func compileAndValidate(t *testing.T, source string, expect []token) {
   fmt.Println("---")
 }
 
-func TestParse(t *testing.T) {
+func _TestParse(t *testing.T) {
   
   sources := []string{
     `Hello, there.@if true {
       This is verbatim.
-      @if false {} else {}
+      @if 1 > 2 {
+        Shouldn't see this
+      } else {
+        Should see this
+      }
+    }`,
+    `Hello, there.@if true {
+      This is verbatim.
+      @if false {
+        Shouldn't see this
+      } else if false {
+        Shouldn't see this either
+      }
+    }`,
+    `Hello, there.@if true {
+      This is verbatim.
+      @if false {
+        Shouldn't see this
+      } else if true {
+        Yes, see this
+      }
     }`,
     `Hello, there.@if true {
       This is verbatim.
@@ -329,6 +435,7 @@ func TestParse(t *testing.T) {
   }
   
   for _, source := range sources {
+    source = strings.Trim(source, " \n\r\t\n")
     s := newScanner(source)
     p := newParser(s)
     r := &runtime{os.Stdout}
@@ -340,5 +447,3 @@ func TestParse(t *testing.T) {
   }
   
 }
-
-

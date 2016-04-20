@@ -1,13 +1,10 @@
 
-SOURCES=\
-	ego.go \
-	ego_test.go \
-	scanner.go \
-	parser.go \
-	program.go
+SOURCES	= $(shell find . -name \*.go -print)
+GOPATH := $(shell cd ../.. && pwd):$(GOPATH)
+
+export PROJECT = $(PWD)
 
 all: deps $(SOURCES)
-	go test
+	go test -test.v
 
 deps:
-
