@@ -31,7 +31,28 @@ test {
 SOURCE
   
   expect = <<RESULT
-     This is displayed if 'a' is true, which it is. 
+     10  11  12  13  14  15  16  17  18  19 
+RESULT
+  
+}
+
+test {
+  
+  context = {
+    a = {
+      a = { v = 0 }
+      b = { v = 1 }
+      c = { v = 2 }
+      d = { v = 3 }
+    }
+  }
+  
+  source = <<SOURCE
+    @for k, e := range a { @(k) = @(e) }
+SOURCE
+  
+  expect = <<RESULT
+     0  1  2  3 
 RESULT
   
 }

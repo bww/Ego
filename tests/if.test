@@ -47,11 +47,11 @@ test {
   
   source = <<SOURCE
     @if a { This is displayed if 'a' is not true, which it is not. }
-    else if b { This is displayed if 'b' is not true, which it is. }
+    else if b { This is displayed if 'b' is true, which it is. }
 SOURCE
   
   expect = <<RESULT
-     This is displayed if 'b' is not true, which it is. 
+     This is displayed if 'b' is true, which it is. 
 RESULT
   
 }
