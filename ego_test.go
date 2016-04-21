@@ -162,7 +162,7 @@ func compileAndRun(t *testing.T, context interface{}, source, expect string) {
   output  := &bytes.Buffer{}
   scanner := newScanner(source)
   parser  := newParser(scanner)
-  runtime := &runtime{output}
+  runtime := &Runtime{output}
   
   program, err := parser.parse()
   if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }

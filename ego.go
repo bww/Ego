@@ -32,3 +32,10 @@ package ego
 
 // trace tokens as a program is parsed
 var DEBUG_TRACE_TOKEN bool
+
+/**
+ * Compile a program
+ */
+func Compile(src string) (*Program, error) {
+  return newParser(newScanner(src)).parse()
+}

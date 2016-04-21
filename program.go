@@ -104,8 +104,8 @@ func (c *context) get(n string) (interface{}, error) {
 /**
  * Executable context
  */
-type runtime struct {
-  stdout    io.Writer
+type Runtime struct {
+  Stdout    io.Writer
 }
 
 /**
@@ -113,7 +113,7 @@ type runtime struct {
  */
 type executable interface {
   src()(span)
-  exec(*runtime, *context) error
+  exec(*Runtime, *context) error
 }
 
 /**
@@ -121,7 +121,7 @@ type executable interface {
  */
 type expression interface {
   src()(span)
-  exec(*runtime, *context)(interface{}, error)
+  exec(*Runtime, *context)(interface{}, error)
 }
 
 /**
@@ -142,8 +142,15 @@ func (n node) src() span {
 /**
  * A program
  */
-type program struct {
+type Program struct {
   containerNode
+}
+
+/**
+ * Execute a program
+ */
+func (n *Program) Exec(runtime *Runtime, context interface{}) error {
+  return n.exec(runtime, newContext(context))
 }
 
 /**
@@ -167,7 +174,7 @@ func (n *containerNode) add(s executable) {
 /**
  * Execute
  */
-func (n *containerNode) exec(runtime *runtime, context *context) error {
+func (n *containerNode) exec(runtime *Runtime, context *context) error {
   if n.subnodes == nil {
     return nil // nothing to do
   }
@@ -190,8 +197,8 @@ type verbatimNode struct {
 /**
  * Execute
  */
-func (n *verbatimNode) exec(runtime *runtime, context *context) error {
-  _, err := runtime.stdout.Write([]byte(n.span.excerpt()))
+func (n *verbatimNode) exec(runtime *Runtime, context *context) error {
+  _, err := runtime.Stdout.Write([]byte(n.span.excerpt()))
   if err != nil {
     return err
   }
@@ -209,7 +216,7 @@ type metaNode struct {
 /**
  * Execute
  */
-func (n *metaNode) exec(runtime *runtime, context *context) error {
+func (n *metaNode) exec(runtime *Runtime, context *context) error {
   fmt.Println("exec:meta")
   return n.child.exec(runtime, context)
 }
@@ -227,7 +234,7 @@ type ifNode struct {
 /**
  * Execute
  */
-func (n *ifNode) exec(runtime *runtime, context *context) error {
+func (n *ifNode) exec(runtime *Runtime, context *context) error {
   
   res, err := n.condition.exec(runtime, context)
   if err != nil {
@@ -264,7 +271,7 @@ type forNode struct {
 /**
  * Execute
  */
-func (n *forNode) exec(runtime *runtime, context *context) error {
+func (n *forNode) exec(runtime *Runtime, context *context) error {
   
   items, err := n.expr.exec(runtime, context)
   if err != nil {
@@ -289,7 +296,7 @@ func (n *forNode) exec(runtime *runtime, context *context) error {
 /**
  * Execute
  */
-func (n *forNode) execArray(runtime *runtime, context *context, val reflect.Value) error {
+func (n *forNode) execArray(runtime *Runtime, context *context, val reflect.Value) error {
   frame := make(map[string]interface{})
   context.push(frame)
   defer context.pop()
@@ -321,7 +328,7 @@ func (n *forNode) execArray(runtime *runtime, context *context, val reflect.Valu
 /**
  * Execute
  */
-func (n *forNode) execMap(runtime *runtime, context *context, val reflect.Value) error {
+func (n *forNode) execMap(runtime *Runtime, context *context, val reflect.Value) error {
   frame := make(map[string]interface{})
   context.push(frame)
   defer context.pop()
@@ -361,7 +368,7 @@ type exprNode struct {
 /**
  * Execute
  */
-func (n *exprNode) exec(runtime *runtime, context *context) error {
+func (n *exprNode) exec(runtime *Runtime, context *context) error {
   
   res, err := n.expr.exec(runtime, context)
   if err != nil {
@@ -378,7 +385,7 @@ func (n *exprNode) exec(runtime *runtime, context *context) error {
       out = fmt.Sprintf("%v", v)
   }
   
-  _, err = runtime.stdout.Write([]byte(out))
+  _, err = runtime.Stdout.Write([]byte(out))
   if err != nil {
     return err
   }
@@ -397,7 +404,7 @@ type logicalNotNode struct {
 /**
  * Execute
  */
-func (n *logicalNotNode) exec(runtime *runtime, context *context) (interface{}, error) {
+func (n *logicalNotNode) exec(runtime *Runtime, context *context) (interface{}, error) {
   
   rvi, err := n.right.exec(runtime, context)
   if err != nil {
@@ -423,7 +430,7 @@ type logicalOrNode struct {
 /**
  * Execute
  */
-func (n *logicalOrNode) exec(runtime *runtime, context *context) (interface{}, error) {
+func (n *logicalOrNode) exec(runtime *Runtime, context *context) (interface{}, error) {
   
   lvi, err := n.left.exec(runtime, context)
   if err != nil {
@@ -461,7 +468,7 @@ type logicalAndNode struct {
 /**
  * Execute
  */
-func (n *logicalAndNode) exec(runtime *runtime, context *context) (interface{}, error) {
+func (n *logicalAndNode) exec(runtime *Runtime, context *context) (interface{}, error) {
   
   lvi, err := n.left.exec(runtime, context)
   if err != nil {
@@ -500,7 +507,7 @@ type arithmeticNode struct {
 /**
  * Execute
  */
-func (n *arithmeticNode) exec(runtime *runtime, context *context) (interface{}, error) {
+func (n *arithmeticNode) exec(runtime *Runtime, context *context) (interface{}, error) {
   
   lvi, err := n.left.exec(runtime, context)
   if err != nil {
@@ -549,7 +556,7 @@ type relationalNode struct {
 /**
  * Execute
  */
-func (n *relationalNode) exec(runtime *runtime, context *context) (interface{}, error) {
+func (n *relationalNode) exec(runtime *Runtime, context *context) (interface{}, error) {
   
   lvi, err := n.left.exec(runtime, context)
   if err != nil {
@@ -602,7 +609,7 @@ type derefNode struct {
 /**
  * Execute
  */
-func (n *derefNode) exec(runtime *runtime, context *context) (interface{}, error) {
+func (n *derefNode) exec(runtime *Runtime, context *context) (interface{}, error) {
   
   v, err := n.left.exec(runtime, context)
   if err != nil {
@@ -636,7 +643,7 @@ type identNode struct {
 /**
  * Execute
  */
-func (n *identNode) exec(runtime *runtime, context *context) (interface{}, error) {
+func (n *identNode) exec(runtime *Runtime, context *context) (interface{}, error) {
   return context.get(n.ident)
 }
 
@@ -651,7 +658,7 @@ type literalNode struct {
 /**
  * Execute
  */
-func (n *literalNode) exec(runtime *runtime, context *context) (interface{}, error) {
+func (n *literalNode) exec(runtime *Runtime, context *context) (interface{}, error) {
   return n.value, nil
 }
 
@@ -665,7 +672,7 @@ type breakNode struct {
 /**
  * Execute
  */
-func (n *breakNode) exec(runtime *runtime, context *context) (interface{}, error) {
+func (n *breakNode) exec(runtime *Runtime, context *context) (interface{}, error) {
   return nil, errBreak
 }
 
@@ -679,7 +686,7 @@ type continueNode struct {
 /**
  * Execute
  */
-func (n *continueNode) exec(runtime *runtime, context *context) (interface{}, error) {
+func (n *continueNode) exec(runtime *Runtime, context *context) (interface{}, error) {
   return nil, errContinue
 }
 

@@ -32,7 +32,6 @@ package main
 
 import (
   "os"
-  // "io"
   "fmt"
   "flag"
   "ego"
@@ -62,6 +61,30 @@ func main() {
     return
   }
   
-  fmt.Println("OK", context)
+  runtime := &ego.Runtime{
+    Stdout: os.Stdout,
+  }
+  
+  for _, p := range cmdline.Args() {
+    
+    src, err := readFile(p)
+    if err != nil {
+      fmt.Printf("%v: Could not read source: %v: %v\n", os.Args[0], p, err)
+      return
+    }
+    
+    prog, err := ego.Compile(string(src))
+    if err != nil {
+      fmt.Printf("%v: Could not compile: %v: %v\n", os.Args[0], p, err)
+      return
+    }
+    
+    err = prog.Exec(runtime, context)
+    if err != nil {
+      fmt.Printf("%v: Could not execute: %v: %v\n", os.Args[0], p, err)
+      return
+    }
+    
+  }
   
 }

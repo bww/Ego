@@ -110,8 +110,8 @@ func (p *parser) nextAssert(valid ...tokenType) (token, error) {
 /**
  * Parse
  */
-func (p *parser) parse() (*program, error) {
-  prog := &program{}
+func (p *parser) parse() (*Program, error) {
+  prog := &Program{}
   
   for {
     t := p.next()

@@ -40,9 +40,9 @@ import (
 )
 
 /**
- * Read a context
+ * Read a file
  */
-func readContext(p string) (interface{}, error) {
+func readFile(p string) ([]byte, error) {
   
   file, err := os.Open(p)
   if err != nil {
@@ -50,6 +50,19 @@ func readContext(p string) (interface{}, error) {
   }
   
   data, err := ioutil.ReadAll(file)
+  if err != nil {
+    return nil, err
+  }
+  
+  return data, nil
+}
+
+/**
+ * Read a context
+ */
+func readContext(p string) (interface{}, error) {
+  
+  data, err := readFile(p)
   if err != nil {
     return nil, err
   }
@@ -69,7 +82,7 @@ func readContext(p string) (interface{}, error) {
 func readJSONContext(p string, data []byte) (interface{}, error) {
   context := make(map[string]interface{})
   
-  err := json.Unmarshal(data, context)
+  err := json.Unmarshal(data, &context)
   if err != nil {
     return nil, err
   }
