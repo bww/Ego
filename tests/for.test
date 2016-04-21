@@ -1,0 +1,37 @@
+/*
+  Tests for the 'for' meta control structure. Test source is formatted
+  oddly to make the expected output easier to manage (e.g., newlines in
+  expected output are avoided)
+*/
+
+test {
+  
+  context = {
+    a = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+  }
+  
+  source = <<SOURCE
+    @for _, e := range a { A }
+SOURCE
+  
+  expect = <<RESULT
+     This is displayed if 'a' is true, which it is. 
+RESULT
+  
+}
+
+test {
+  
+  context = {
+    a = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+  }
+  
+  source = <<SOURCE
+    @for _, e := range a { @(e + 10) }
+SOURCE
+  
+  expect = <<RESULT
+     This is displayed if 'a' is true, which it is. 
+RESULT
+  
+}

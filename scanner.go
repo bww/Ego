@@ -144,6 +144,7 @@ const (
   tokenDot              = '.'
   tokenComma            = ','
   tokenSemi             = ';'
+  tokenColon            = ':'
   tokenAdd              = '+'
   tokenSub              = '-'
   tokenMul              = '*'
@@ -177,9 +178,9 @@ const (
   tokenLessEqual        = tokenSuffixEqual | '<'
   tokenGreaterEqual     = tokenSuffixEqual | '>'
   tokenNotEqual         = tokenSuffixEqual | '!'
-  tokenAssignInfer      = tokenSuffixEqual | ':'
-  tokenLogicalAndEqual  = tokenSuffixEqual | '&'
-  tokenLogicalOrEqual   = tokenSuffixEqual | '|'
+  tokenBitwiseAndEqual  = tokenSuffixEqual | '&'
+  tokenBitwiseOrEqual   = tokenSuffixEqual | '|'
+  tokenAssignSpecial    = tokenSuffixEqual | ':'
   
 )
 
@@ -222,6 +223,36 @@ func (t tokenType) String() string {
       return "nil"
     case tokenRange:
       return "range"
+    case tokenInc:
+      return "++"
+    case tokenDec:
+      return "--"
+    case tokenLogicalAnd:
+      return "&&"
+    case tokenLogicalOr:
+      return "||"
+    case tokenEqual:
+      return "=="
+    case tokenAddEqual:
+      return "+="
+    case tokenSubEqual:
+      return "+="
+    case tokenMulEqual:
+      return "*="
+    case tokenDivEqual:
+      return "/="
+    case tokenLessEqual:
+      return "<="
+    case tokenGreaterEqual:
+      return ">="
+    case tokenNotEqual:
+      return "!="
+    case tokenAssignSpecial:
+      return ":="
+    case tokenBitwiseAndEqual:
+      return "&="
+    case tokenBitwiseOrEqual:
+      return "|="
     default:
       if t < 128 {
         return fmt.Sprintf("'%v'", string(t))
@@ -285,6 +316,11 @@ func (s *scannerError) Error() string {
   }
 }
 
+const (
+  mtypeExpr     = iota
+  mtypeControl  = iota
+)
+
 /**
  * A scanner
  */
@@ -296,6 +332,8 @@ type scanner struct {
   depth   int // meta depth
   tokens  chan token
   state   scannerAction
+  paren   int
+  mtype   int
 }
 
 /**
@@ -303,7 +341,7 @@ type scanner struct {
  */
 func newScanner(text string) *scanner {
   t := make(chan token, 5 /* several tokens may be produced in one iteration */)
-  return &scanner{text, 0, 0, 0, 0, t, startAction}
+  return &scanner{text, 0, 0, 0, 0, t, startAction, 0, 0}
 }
 
 /**
@@ -542,6 +580,16 @@ func startAction(s *scanner) scannerAction {
 func preludeAction(s *scanner) scannerAction {
   s.emit(token{span{s.text, s.index, 1}, tokenMeta, "@"})
   s.next() // skip the '@' delimiter
+  
+  // if the meta begins with an open parenthesis it is an expression, otherwise
+  // it is a control structure (if, for, etc)
+  if s.next() == '(' {
+    s.mtype = mtypeExpr
+  }else{
+    s.mtype = mtypeControl
+  }
+  s.backup()
+  
   return metaAction
 }
 
@@ -575,7 +623,21 @@ func metaAction(s *scanner) scannerAction {
         s.backup()
         return identifierAction
         
-      case r == '(' || r == ')' || r == '[' || r == ']' || r == '.' || r == ',' || r == ';':
+      case r == '(':
+        s.paren++
+        s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        return metaAction
+        
+      case r == ')':
+        s.paren--
+        s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        if s.paren == 0 && s.mtype == mtypeExpr {
+          return startAction
+        }else{
+          return metaAction
+        }
+        
+      case r == '[' || r == ']' || r == '.' || r == ',' || r == ';':
         s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
         return metaAction
         
@@ -617,6 +679,15 @@ func metaAction(s *scanner) scannerAction {
           s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenSuffixEqual | r), string(r)})
         }else if n == '-' {
           s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenPrefixSub | r), string(r)})
+        }else{
+          s.backup()
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})
+        }
+        return metaAction
+      
+      case r == ':':
+        if n := s.next(); n == '=' {
+          s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(tokenSuffixEqual | r), string(r)})
         }else{
           s.backup()
           s.emit(token{span{s.text, s.start, s.index - s.start}, tokenType(r), string(r)})

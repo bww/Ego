@@ -247,6 +247,133 @@ func (n *ifNode) exec(runtime *runtime, context *context) error {
 }
 
 /**
+ * A for node
+ */
+type forNode struct {
+  node
+  vars  []expression
+  expr  expression
+  loop  executable
+}
+
+/**
+ * Execute
+ */
+func (n *forNode) exec(runtime *runtime, context *context) error {
+  
+  items, err := n.expr.exec(runtime, context)
+  if err != nil {
+    return err
+  }
+  
+  value := reflect.ValueOf(items)
+  deref, _ := derefValue(value)
+  switch deref.Kind() {
+    case reflect.Array:
+      return n.execArray(runtime, context, deref)
+    case reflect.Slice:
+      return n.execArray(runtime, context, deref)
+    case reflect.Map:
+      return n.execMap(runtime, context, deref)
+    default:
+      return fmt.Errorf("Expression result is not iterable: %v (%T)", deref, deref)
+  }
+  
+}
+
+/**
+ * Execute
+ */
+func (n *forNode) execArray(runtime *runtime, context *context, val reflect.Value) error {
+  frame := make(map[string]interface{})
+  context.push(frame)
+  defer context.pop()
+  
+  l := val.Len()
+  for i := 0; i < l; i++ {
+    v := val.Index(i)
+    
+    if len(n.vars) == 1 {
+      frame[n.vars[0].(*identNode).ident] = v.Interface()
+    }else{
+      frame[n.vars[0].(*identNode).ident] = i
+      frame[n.vars[1].(*identNode).ident] = v.Interface()
+    }
+    
+    err := n.loop.exec(runtime, context)
+    if err != nil {
+      return err
+    }
+  }
+  
+  return nil
+}
+
+/**
+ * Execute
+ */
+func (n *forNode) execMap(runtime *runtime, context *context, val reflect.Value) error {
+  frame := make(map[string]interface{})
+  context.push(frame)
+  defer context.pop()
+  
+  keys := val.MapKeys()
+  for _, k := range keys {
+    v := val.MapIndex(k)
+    
+    if len(n.vars) == 1 {
+      frame[n.vars[0].(*identNode).ident] = v.Interface()
+    }else{
+      frame[n.vars[0].(*identNode).ident] = k.Interface()
+      frame[n.vars[1].(*identNode).ident] = v.Interface()
+    }
+    
+    err := n.loop.exec(runtime, context)
+    if err != nil {
+      return err
+    }
+  }
+  
+  return nil
+}
+
+/**
+ * An expression node
+ */
+type exprNode struct {
+  node
+  expr  expression
+}
+
+/**
+ * Execute
+ */
+func (n *exprNode) exec(runtime *runtime, context *context) error {
+  
+  res, err := n.expr.exec(runtime, context)
+  if err != nil {
+    return err
+  }
+  
+  var out string
+  switch v := res.(type) {
+    case string:
+      out = v
+    case []byte:
+      out = string(v)
+    default:
+      out = fmt.Sprintf("%v", v)
+  }
+  
+  _, err = runtime.stdout.Write([]byte(out))
+  if err != nil {
+    return err
+  }
+  
+  return nil
+}
+
+/**
  * A logical NOT node
  */
 type logicalNotNode struct {

@@ -89,6 +89,25 @@ func (p *parser) next() token {
 }
 
 /**
+ * Consume the next token asserting that it is one of the provided token types
+ */
+func (p *parser) nextAssert(valid ...tokenType) (token, error) {
+  t := p.next()
+  switch t.which {
+    case tokenEOF:
+      return token{}, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return token{}, fmt.Errorf("Error: %v", t)
+  }
+  for _, v := range valid {
+    if t.which == v {
+      return t, nil
+    }
+  }
+  return token{}, invalidTokenError(t, valid...)
+}
+
+/**
  * Parse
  */
 func (p *parser) parse() (*program, error) {
@@ -162,8 +181,15 @@ func (p *parser) parseMeta(t token) (executable, error) {
         return n, nil
       }
       
+    case tokenLParen:
+      if n, err := p.parseInterpolate(t); err != nil {
+        return nil, err
+      }else{
+        return n, nil
+      }
+      
     default:
-      return nil, invalidTokenError(t, tokenIf, tokenFor)
+      return nil, invalidTokenError(t, tokenIf, tokenFor, tokenBlock, '(')
       
   }
 }
@@ -219,16 +245,9 @@ func (p *parser) parseIf(t token) (executable, error) {
     return nil, err
   }
   
-  t = p.next()
-  switch t.which {
-    case tokenEOF:
-      return nil, fmt.Errorf("Unexpected end-of-input")
-    case tokenError:
-      return nil, fmt.Errorf("Error: %v", t)
-    case tokenBlock:
-      break // valid token
-    default:
-      return nil, invalidTokenError(t, tokenBlock)
+  t, err = p.nextAssert(tokenBlock)
+  if err != nil {
+    return nil, err
   }
   
   iftrue, err := p.parseBlock(t)
@@ -257,7 +276,61 @@ func (p *parser) parseIf(t token) (executable, error) {
  * Parse
  */
 func (p *parser) parseFor(t token) (executable, error) {
-  return nil, nil
+  
+  vars, err := p.parseIdentList()
+  if err != nil {
+    return nil, err
+  }
+  
+  lspan := []span{t.span}
+  for _, e := range vars {
+    lspan = append(lspan, e.src())
+  }
+  
+  if len(vars) < 1 || len(vars) > 2 {
+    return nil, &parserError{fmt.Sprintf("Incorrect variable count: %d", len(vars)), encompass(lspan...), nil}
+  }
+  
+  t, err = p.nextAssert(tokenAssignSpecial)
+  if err != nil {
+    return nil, err
+  }
+  
+  t, err = p.nextAssert(tokenRange)
+  if err != nil {
+    return nil, err
+  }
+  
+  expr, err := p.parseExpression()
+  if err != nil {
+    return nil, err
+  }
+  
+  t, err = p.nextAssert(tokenBlock)
+  if err != nil {
+    return nil, err
+  }
+  
+  loop, err := p.parseBlock(t)
+  if err != nil {
+    return nil, err
+  }
+  
+  lspan = append(lspan, loop.src())
+  return &forNode{node{encompass(lspan...), &t}, vars, expr, loop}, nil
+}
+
+/**
+ * Parse ab expression interpolation
+ */
+func (p *parser) parseInterpolate(t token) (executable, error) {
+  
+  expr, err := p.parseParen()
+  if err != nil {
+    return nil, err
+  }
+  
+  return &exprNode{node{expr.src(), &t}, expr}, nil
 }
 
 /**
@@ -534,6 +607,34 @@ func (p *parser) parseParen() (expression, error) {
 }
 
 /**
+ * Parse an identifier list
+ */
+func (p *parser) parseIdentList() ([]expression, error) {
+  list := make([]expression, 0)
+  
+  for {
+    var t token
+    
+    t = p.next()
+    if t.which != tokenIdentifier {
+      return nil, fmt.Errorf("Expected ident but found %v", t)
+    }
+    
+    list = append(list, &identNode{node{t.span, &t}, t.value.(string)})
+    
+    t = p.peek(0)
+    if t.which != tokenComma {
+      break
+    }else{
+      p.next() // consume the comma
+    }
+    
+  }
+  
+  return list, nil
+}
+
+/**
  * A parser error
  */
 type parserError struct {
@@ -570,4 +671,3 @@ func invalidTokenError(t token, e ...tokenType) error {
   
   return &parserError{m, t.span, nil}
 }
-

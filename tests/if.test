@@ -1,0 +1,77 @@
+/*
+  Tests for the 'if' meta control structure. Test source is formatted
+  oddly to make the expected output easier to manage (e.g., newlines in
+  expected output are avoided)
+*/
+
+test {
+  
+  context = {
+    a = true
+  }
+  
+  source = <<SOURCE
+    @if (a) { This is displayed if 'a' is true, which it is. }
+    else { Otherwise this. }
+SOURCE
+  
+  expect = <<RESULT
+     This is displayed if 'a' is true, which it is. 
+RESULT
+  
+}
+
+test {
+  
+  context = {
+    a = true
+  }
+  
+  source = <<SOURCE
+    @if !a { This is displayed if '!a' is not true, which it is not. }
+    else { Otherwise this is displayed. }
+SOURCE
+  
+  expect = <<RESULT
+     Otherwise this is displayed. 
+RESULT
+  
+}
+
+test {
+  
+  context = {
+    a = false
+    b = true
+  }
+  
+  source = <<SOURCE
+    @if a { This is displayed if 'a' is not true, which it is not. }
+    else if b { This is displayed if 'b' is not true, which it is. }
+SOURCE
+  
+  expect = <<RESULT
+     This is displayed if 'b' is not true, which it is. 
+RESULT
+  
+}
+
+test {
+  
+  context = {
+    a = false
+    b = false
+  }
+  
+  source = <<SOURCE
+    @if a { This is displayed if 'a' is not true, which it is not. }
+    else if b { This is displayed if 'b' is not true, which it also is not. }
+    else { Otherwise this is displayed. }
+SOURCE
+  
+  expect = <<RESULT
+     Otherwise this is displayed. 
+RESULT
+  
+}
+
