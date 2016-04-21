@@ -131,6 +131,8 @@ const (
   tokenIf
   tokenElse
   tokenFor
+  tokenBreak
+  tokenContinue
   
   tokenTrue
   tokenFalse
@@ -215,6 +217,10 @@ func (t tokenType) String() string {
       return "else"
     case tokenFor:
       return "for"
+    case tokenBreak:
+      return "break"
+    case tokenContinue:
+      return "continue"
     case tokenTrue:
       return "true"
     case tokenFalse:
@@ -786,6 +792,10 @@ func identifierAction(s *scanner) scannerAction {
       s.emit(token{t, tokenElse, v})
     case "for":
       s.emit(token{t, tokenFor, v})
+    case "break":
+      s.emit(token{t, tokenBreak, v})
+    case "continue":
+      s.emit(token{t, tokenContinue, v})
     case "true":
       s.emit(token{t, tokenTrue, v})
     case "false":

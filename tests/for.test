@@ -27,11 +27,11 @@ test {
   }
   
   source = <<SOURCE
-    @for _, e := range a { @(e + 10) }
+    @for i, e := range a { @(i) = @(e + 10) }
 SOURCE
   
   expect = <<RESULT
-     10  11  12  13  14  15  16  17  18  19 
+     0 = 10  1 = 11  2 = 12  3 = 13  4 = 14  5 = 15  6 = 16  7 = 17  8 = 18  9 = 19 
 RESULT
   
 }

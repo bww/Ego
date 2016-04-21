@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/bww/hcl/hcl/ast"
+	"github.com/bww/hcl/testhelper"
 )
 
 func TestDecode_interface(t *testing.T) {
@@ -89,12 +90,22 @@ func TestDecode_interface(t *testing.T) {
 		{
 			"multiline.hcl",
 			false,
-			map[string]interface{}{"foo": "bar\nbaz\n"},
+			map[string]interface{}{"foo": testhelper.Unix2dos("bar\nbaz\n")},
+		},
+		{
+			"multiline_indented.hcl",
+			false,
+			map[string]interface{}{"foo": testhelper.Unix2dos("  bar\n  baz\n")},
+		},
+		{
+			"multiline_no_hanging_indent.hcl",
+			false,
+			map[string]interface{}{"foo": testhelper.Unix2dos("  baz\n    bar\n      foo\n")},
 		},
 		{
 			"multiline_no_eof.hcl",
 			false,
-			map[string]interface{}{"foo": "bar\nbaz\n", "key": "value"},
+			map[string]interface{}{"foo": testhelper.Unix2dos("bar\nbaz\n"), "key": "value"},
 		},
 		{
 			"multiline.json",
@@ -240,6 +251,20 @@ func TestDecode_interface(t *testing.T) {
 		},
 
 		{
+			"unterminated_brace.hcl",
+			true,
+			nil,
+		},
+
+		{
+			"nested_provider_bad.hcl",
+			true,
+			// This is not ideal but without significant rework of the decoder
+			// we get a partial result back as well as an error.
+			map[string]interface{}{},
+		},
+
+		{
 			"object_list.json",
 			false,
 			map[string]interface{}{
@@ -284,6 +309,16 @@ func TestDecode_interface(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(out, tc.Out) {
+			t.Fatalf("Input: %s. Actual, Expected.\n\n%#v\n\n%#v", tc.File, out, tc.Out)
+		}
+
+		var v interface{}
+		err = Unmarshal(d, &v)
+		if (err != nil) != tc.Err {
+			t.Fatalf("Input: %s\n\nError: %s", tc.File, err)
+		}
+
+		if !reflect.DeepEqual(v, tc.Out) {
 			t.Fatalf("Input: %s. Actual, Expected.\n\n%#v\n\n%#v", tc.File, out, tc.Out)
 		}
 	}
@@ -730,7 +765,7 @@ content {
 func TestDecode_NestedNode(t *testing.T) {
 	// given
 	var value struct {
-		Nested  struct {
+		Nested struct {
 			Content ast.Node
 		}
 	}
@@ -763,3 +798,34 @@ nested "content" {
 	}
 }
 
+// https://github.com/hashicorp/hcl/issues/60
+func TestDecode_topLevelKeys(t *testing.T) {
+	type Template struct {
+		Source string
+	}
+
+	templates := struct {
+		Templates []*Template `hcl:"template"`
+	}{}
+
+	err := Decode(&templates, `
+	template {
+	    source = "blah"
+	}
+
+	template {
+	    source = "blahblah"
+	}`)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if templates.Templates[0].Source != "blah" {
+		t.Errorf("bad source: %s", templates.Templates[0].Source)
+	}
+
+	if templates.Templates[1].Source != "blahblah" {
+		t.Errorf("bad source: %s", templates.Templates[1].Source)
+	}
+}

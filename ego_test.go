@@ -58,7 +58,7 @@ type testCase struct {
 /**
  * Test everything
  */
-func TestAll(t *testing.T) {
+func _TestAll(t *testing.T) {
   
   proj := os.Getenv("PROJECT")
   if !assert.True(t, len(proj) > 0, "No project root") { return }
@@ -126,51 +126,7 @@ func TestAll(t *testing.T) {
   
 }
 
-func _TestThis(t *testing.T) {
-  
-  sources := []string{
-    
-`@if true ()[]., + ++ += - -- -= = == : := ! != * *= / /= < <= > >= ; | || |= & && &= range {
-  This is a literal \\\} right here.
-}else if range {} else {}`,
-
-`@if true {
-  Hello.
-  @for a, b, c {
-    ...
-  }
-}`,
-
-`Hi.
-\a\\
-Why doesn't this break?!
-\@
-@if true {
-  This, that, if else for
-  Ok. Yeah.
-} ... more.
-  
-@for 123 "String" {
-  Do this, then... \{ hmm \}
-}
-
-@if false {
-  Nope...
-} else {
-  This text instead!
-}
-
-Foo.
-`,
-  }
-  
-  for _, e := range sources {
-    compileAndValidate(t, e, nil)
-  }
-  
-}
-
-func _TestBasicEscaping(t *testing.T) {
+func TestEscaping(t *testing.T) {
   var source string
   
   source = `\foo`
@@ -222,125 +178,6 @@ func _TestBasicEscaping(t *testing.T) {
   compileAndValidate(t, source, []token{
     token{span{source, 0, 4}, tokenVerbatim, "foo\\"},
     token{span{source, 4, 0}, tokenEOF, nil},
-  })
-  
-}
-
-func _TestBasicTypes(t *testing.T) {
-  var source string
-  
-  source = `@123{}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 3}, tokenNumber, float64(123)},
-    token{span{source, 4, 1}, tokenBlock, nil},
-    token{span{source, 5, 1}, tokenClose, nil},
-    token{span{source, 6, 0}, tokenEOF, nil},
-  })
-  
-  source = `@123.456{}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 7}, tokenNumber, float64(123.456)},
-    token{span{source, 8, 1}, tokenBlock, nil},
-    token{span{source, 9, 1}, tokenClose, nil},
-    token{span{source, 10, 0}, tokenEOF, nil},
-  })
-  
-  source = `@0xff{}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 4}, tokenNumber, float64(0xff)},
-    token{span{source, 5, 1}, tokenBlock, nil},
-    token{span{source, 6, 1}, tokenClose, nil},
-    token{span{source, 7, 0}, tokenEOF, nil},
-  })
-  
-  source = `@07{}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 2}, tokenNumber, float64(7)},
-    token{span{source, 3, 1}, tokenBlock, nil},
-    token{span{source, 4, 1}, tokenClose, nil},
-    token{span{source, 5, 0}, tokenEOF, nil},
-  })
-  
-  source = `@"Hi."{}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 5}, tokenString, "Hi."},
-    token{span{source, 6, 1}, tokenBlock, nil},
-    token{span{source, 7, 1}, tokenClose, nil},
-    token{span{source, 8, 0}, tokenEOF, nil},
-  })
-  
-  source = `@true{}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 4}, tokenTrue, "true"},
-    token{span{source, 5, 1}, tokenBlock, nil},
-    token{span{source, 6, 1}, tokenClose, nil},
-    token{span{source, 7, 0}, tokenEOF, nil},
-  })
-  
-  source = `@false{}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 5}, tokenFalse, "false"},
-    token{span{source, 6, 1}, tokenBlock, nil},
-    token{span{source, 7, 1}, tokenClose, nil},
-    token{span{source, 8, 0}, tokenEOF, nil},
-  })
-  
-  source = `@nil{}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 3}, tokenNil, nil},
-    token{span{source, 4, 1}, tokenBlock, nil},
-    token{span{source, 5, 1}, tokenClose, nil},
-    token{span{source, 6, 0}, tokenEOF, nil},
-  })
-  
-  source = `@if{}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 2}, tokenIf, "if"},
-    token{span{source, 3, 1}, tokenBlock, nil},
-    token{span{source, 4, 1}, tokenClose, nil},
-    token{span{source, 5, 0}, tokenEOF, nil},
-  })
-  
-  source = `@else{}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 4}, tokenElse, "else"},
-    token{span{source, 5, 1}, tokenBlock, nil},
-    token{span{source, 6, 1}, tokenClose, nil},
-    token{span{source, 7, 0}, tokenEOF, nil},
-  })
-  
-  source = `@for{}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 3}, tokenFor, "for"},
-    token{span{source, 4, 1}, tokenBlock, nil},
-    token{span{source, 5, 1}, tokenClose, nil},
-    token{span{source, 6, 0}, tokenEOF, nil},
-  })
-  
-}
-
-func _TestBasicMeta(t *testing.T) {
-  var source string
-  
-  source = `@if true {}`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenMeta, "@"},
-    token{span{source, 1, 2}, tokenIf, "if"},
-    token{span{source, 4, 4}, tokenTrue, "true"},
-    token{span{source, 9, 1}, tokenBlock, nil},
-    token{span{source, 10, 1}, tokenClose, nil},
-    token{span{source, 11, 0}, tokenEOF, nil},
   })
   
 }
@@ -401,49 +238,23 @@ func compileAndValidate(t *testing.T, source string, expect []token) {
   fmt.Println("---")
 }
 
-func _TestParse(t *testing.T) {
+func compileAndRun(t *testing.T, context interface{}, source, expect string) {
+  fmt.Println(source)
   
-  sources := []string{
-    `Hello, there.@if true {
-      This is verbatim.
-      @if 1 > 2 {
-        Shouldn't see this
-      } else {
-        Should see this
-      }
-    }`,
-    `Hello, there.@if true {
-      This is verbatim.
-      @if false {
-        Shouldn't see this
-      } else if false {
-        Shouldn't see this either
-      }
-    }`,
-    `Hello, there.@if true {
-      This is verbatim.
-      @if false {
-        Shouldn't see this
-      } else if true {
-        Yes, see this
-      }
-    }`,
-    `Hello, there.@if true {
-      This is verbatim.
-      @if false {} \else not really
-    }`,
-  }
+  output  := &bytes.Buffer{}
+  scanner := newScanner(source)
+  parser  := newParser(scanner)
+  runtime := &runtime{output}
   
-  for _, source := range sources {
-    source = strings.Trim(source, " \n\r\t\n")
-    s := newScanner(source)
-    p := newParser(s)
-    r := &runtime{os.Stdout}
-    if g, err := p.parse(); err != nil {
-      t.Fatal(err)
-    }else if err := g.exec(r, nil); err != nil {
-      t.Fatal(err)
-    }
-  }
+  program, err := parser.parse()
+  if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
   
+  err = program.exec(runtime, newContext(context))
+  if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
+  
+  fmt.Printf("--> %v\n", source)
+  fmt.Printf("<-- %v\n", string(output.Bytes()))
+  
+  assert.Equal(t, expect, string(output.Bytes()))
 }
+

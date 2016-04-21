@@ -573,6 +573,10 @@ func (p *parser) parsePrimary() (expression, error) {
       return nil, fmt.Errorf("Error: %v", t)
     case tokenLParen:
       return p.parseParen()
+    case tokenBreak:
+      return &breakNode{node{t.span, &t}}, nil
+    case tokenContinue:
+      return &continueNode{node{t.span, &t}}, nil
     case tokenIdentifier:
       return &identNode{node{t.span, &t}, t.value.(string)}, nil
     case tokenNumber, tokenString:

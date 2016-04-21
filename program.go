@@ -36,6 +36,11 @@ import (
   "reflect"
 )
 
+var (
+  errBreak    = fmt.Errorf("break")
+  errContinue = fmt.Errorf("continue")
+)
+
 /**
  * A runtime context
  */
@@ -301,7 +306,11 @@ func (n *forNode) execArray(runtime *runtime, context *context, val reflect.Valu
     }
     
     err := n.loop.exec(runtime, context)
-    if err != nil {
+    if err == errBreak {
+      break
+    }else if err == errContinue {
+      continue
+    }else if err != nil {
       return err
     }
   }
@@ -329,7 +338,11 @@ func (n *forNode) execMap(runtime *runtime, context *context, val reflect.Value)
     }
     
     err := n.loop.exec(runtime, context)
-    if err != nil {
+    if err == errBreak {
+      break
+    }else if err == errContinue {
+      continue
+    }else if err != nil {
       return err
     }
   }
@@ -640,6 +653,34 @@ type literalNode struct {
  */
 func (n *literalNode) exec(runtime *runtime, context *context) (interface{}, error) {
   return n.value, nil
+}
+
+/**
+ * A break expression node
+ */
+type breakNode struct {
+  node
+}
+
+/**
+ * Execute
+ */
+func (n *breakNode) exec(runtime *runtime, context *context) (interface{}, error) {
+  return nil, errBreak
+}
+
+/**
+ * A continue expression node
+ */
+type continueNode struct {
+  node
+}
+
+/**
+ * Execute
+ */
+func (n *continueNode) exec(runtime *runtime, context *context) (interface{}, error) {
+  return nil, errContinue
 }
 
 /**
