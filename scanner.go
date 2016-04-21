@@ -466,7 +466,6 @@ func (s *scanner) findFrom(index int, any string, invert bool) int {
       }
       
       r, w := utf8.DecodeRuneInString(s.text[i:])
-      
       if !strings.ContainsRune(any, r) {
         return i
       }else{
@@ -738,7 +737,7 @@ func closeAction(s *scanner) scannerAction {
   s.next()  // skip the '}' delimiter
   s.depth-- // decrement the meta depth
   
-  f := s.findFrom(s.index + 1, " \n\r\t\v", true)
+  f := s.findFrom(s.index, " \n\r\t\v", true)
   if s.matchAt(f, "else") {
     s.move(f)
     return identifierAction

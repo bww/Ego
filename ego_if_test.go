@@ -64,5 +64,10 @@ func TestIf(t *testing.T) {
     ` Otherwise this is displayed. `,
   )
   
+  compileAndRun(t, map[string]interface{}{"a": true},
+    `@if (a) { A }else{ B }`, // braces tight around 'else'
+    ` A `,
+  )
+  
 }
 
