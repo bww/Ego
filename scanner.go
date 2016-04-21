@@ -346,7 +346,7 @@ type scanner struct {
  * Create a scanner
  */
 func newScanner(text string) *scanner {
-  t := make(chan token, 5 /* several tokens may be produced in one iteration */)
+  t := make(chan token, 64 /* several tokens may be produced in one iteration */)
   return &scanner{text, 0, 0, 0, 0, t, startAction, 0, 0}
 }
 
