@@ -31,99 +31,17 @@
 package ego
 
 import (
-  "os"
   "fmt"
-  "path"
   "bytes"
-  "strings"
   "testing"
-  "io/ioutil"
 )
 
 import (
-  "github.com/bww/hcl"
   "github.com/stretchr/testify/assert"
 )
 
 func init() {
   DEBUG_TRACE_TOKEN = true
-}
-
-type testCase struct {
-  Source  string                  `hcl:"source"`
-  Expect  string                  `hcl:"expect"`
-  Context map[string]interface{}  `hcl:"context"`
-}
-
-/**
- * Test everything
- */
-func _TestAll(t *testing.T) {
-  
-  proj := os.Getenv("PROJECT")
-  if !assert.True(t, len(proj) > 0, "No project root") { return }
-  
-  dir, err := os.Open(path.Join(proj, "tests"))
-  if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
-  
-  every, err := dir.Readdir(1000)
-  if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
-  
-  var filter map[string]struct{}
-  which := os.Getenv("EGO_TESTS")
-  if which != "" {
-    f := strings.Fields(which)
-    if len(f) > 0 {
-      filter = make(map[string]struct{})
-      for _, e := range f {
-        filter[e + ".test"] = struct{}{}
-      }
-    }
-  }
-  
-  for _, f := range every {
-    var tests []testCase
-    
-    if filter != nil {
-      if _, ok := filter[f.Name()]; !ok {
-        t.Logf("===> %v (skip)", f.Name())
-        continue
-      }
-    }
-    
-    t.Logf("===> %v", f.Name())
-    
-    file, err := os.Open(path.Join(proj, "tests", f.Name()))
-    if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
-    
-    data, err := ioutil.ReadAll(file)
-    if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
-    
-    err = hcl.Decode(&tests, string(data))
-    if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
-    
-    for _, e := range tests {
-      
-      output  := &bytes.Buffer{}
-      scanner := newScanner(e.Source)
-      parser  := newParser(scanner)
-      runtime := &runtime{output}
-      
-      program, err := parser.parse()
-      if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { continue }
-      
-      err = program.exec(runtime, newContext(e.Context))
-      if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { continue }
-      
-      fmt.Printf("--> %v\n", e.Source)
-      fmt.Printf("<-- %v\n", string(output.Bytes()))
-      
-      assert.Equal(t, e.Expect, string(output.Bytes()), "Expected output and actual output differ")
-      
-    }
-    
-  }
-  
 }
 
 func TestEscaping(t *testing.T) {
