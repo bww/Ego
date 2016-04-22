@@ -521,15 +521,16 @@ func startAction(s *scanner) scannerAction {
   for {
     
     if s.index < len(s.text) {
-      switch s.text[s.index] {
+      r := s.text[s.index]
+      switch {
         
-        case meta:
+        case r == meta:
           if s.index > s.start {
             s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
           }
           return preludeAction
           
-        case '}':
+        case r == '}' && s.depth > 0:
           if s.index > s.start {
             s.emit(token{span{s.text, s.start, s.index - s.start}, tokenVerbatim, s.text[s.start:s.index]})
           }

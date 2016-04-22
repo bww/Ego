@@ -69,5 +69,10 @@ func TestIf(t *testing.T) {
     ` A `,
   )
   
+  compileAndRun(t, map[string]interface{}{"a": true},
+    `@if (a) { A \} } }`, // unescaped '}' outside block, escaped '}' inside block
+    ` A  } }`,
+  )
+  
 }
 

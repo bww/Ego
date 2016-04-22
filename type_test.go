@@ -44,7 +44,7 @@ func TestType(t *testing.T) {
   compileAndValidate(t, source, []token{
     token{span{source, 0, 1}, tokenMeta, "@"},
     token{span{source, 1, 1}, tokenLParen, "("},
-    token{span{source, 2, 3}, tokenNumber, 123},
+    token{span{source, 2, 3}, tokenNumber, float64(123)},
     token{span{source, 5, 1}, tokenRParen, ")"},
     token{span{source, 6, 0}, tokenEOF, nil},
   })

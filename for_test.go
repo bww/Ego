@@ -49,10 +49,11 @@ func TestFor(t *testing.T) {
     ` 0 = 10  1 = 11  2 = 12  3 = 13  4 = 14  5 = 15  6 = 16  7 = 17  8 = 18  9 = 19 `,
   )
   
-  compileAndRun(t, map[string]interface{}{"a": map[string]int{"a": 1, "b": 2, "c": 3, "d": 4}},
-    `@for k, v := range a { @(k) = @(v) }`,
-    ` a = 1  b = 2  c = 3  d = 4 `,
-  )
+  // this one is hard to test since the keys are not necessarily iterated in any particular order
+  // compileAndRun(t, map[string]interface{}{"a": map[string]int{"a": 1, "b": 2, "c": 3, "d": 4}},
+  //   `@for k, v := range a { @(k) = @(v) }`,
+  //   ` a = 1  b = 2  c = 3  d = 4 `,
+  // )
   
   compileAndRun(t, map[string]interface{}{"a": []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}},
     `@for _, e := range a { A @(break) B }`,

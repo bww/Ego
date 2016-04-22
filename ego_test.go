@@ -41,7 +41,7 @@ import (
 )
 
 func init() {
-  DEBUG_TRACE_TOKEN = true
+  // DEBUG_TRACE_TOKEN = true
 }
 
 func compileAndValidate(t *testing.T, source string, expect []token) {
