@@ -44,62 +44,6 @@ func init() {
   DEBUG_TRACE_TOKEN = true
 }
 
-func TestEscaping(t *testing.T) {
-  var source string
-  
-  source = `\foo`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 4}, tokenVerbatim, source},
-    token{span{source, 4, 0}, tokenEOF, nil},
-  })
-  
-  source = `\@`
-  compileAndValidate(t, source, []token{
-    token{span{source, 1, 1}, tokenVerbatim, "@"},
-    token{span{source, 2, 0}, tokenEOF, nil},
-  })
-  
-  source = `x\@`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenVerbatim, "x"},
-    token{span{source, 2, 1}, tokenVerbatim, "@"},
-    token{span{source, 3, 0}, tokenEOF, nil},
-  })
-  
-  source = `\\\@`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenVerbatim, "\\"},
-    token{span{source, 3, 1}, tokenVerbatim, "@"},
-    token{span{source, 4, 0}, tokenEOF, nil},
-  })
-  
-  source = `\@\\`
-  compileAndValidate(t, source, []token{
-    token{span{source, 1, 1}, tokenVerbatim, "@"},
-    token{span{source, 2, 1}, tokenVerbatim, "\\"},
-    token{span{source, 4, 0}, tokenEOF, nil},
-  })
-  
-  source = `\\`
-  compileAndValidate(t, source, []token{
-    token{span{source, 1, 1}, tokenVerbatim, "\\"},
-    token{span{source, 2, 0}, tokenEOF, nil},
-  })
-  
-  source = `\`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 1}, tokenVerbatim, "\\"},
-    token{span{source, 1, 0}, tokenEOF, nil},
-  })
-  
-  source = `foo\`
-  compileAndValidate(t, source, []token{
-    token{span{source, 0, 4}, tokenVerbatim, "foo\\"},
-    token{span{source, 4, 0}, tokenEOF, nil},
-  })
-  
-}
-
 func compileAndValidate(t *testing.T, source string, expect []token) {
   fmt.Println(source)
   

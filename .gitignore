@@ -1,0 +1,20 @@
+.gradle/
+.idea/
+.deps/
+
+# Run-time data directories
+**/dist/
+**/target/
+
+.DS_Store
+**.pyc
+**.iml
+
+atlassian-ide-plugin.xml
+/web/src/web/zumur/static/*
+
+output.html
+user.make
+
+test/volumes
+misc/

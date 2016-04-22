@@ -995,7 +995,6 @@ func (s *scanner) scanNumber() (float64, numericType, error) {
   ch := s.next()
   
 	if ch == '0' {
-	  
 		// int or float
 		ch = s.next()
 		if ch == 'x' || ch == 'X' {
@@ -1037,7 +1036,10 @@ func (s *scanner) scanNumber() (float64, numericType, error) {
 				s.errorf(span{s.text, start, s.index - start}, nil, "Illegal octal number")
 			}
 			
-			if v, err := strconv.ParseInt(s.text[start+1:s.index], 8, 64); err != nil {
+      t := s.text[start+1:s.index]
+      if t == "" { // no more text, this is a zero
+        return 0, numericInteger, nil
+			}else if v, err := strconv.ParseInt(t, 8, 64); err != nil {
 				return 0, 0, s.errorf(span{s.text, start, s.index - start}, err, "Could not parse number")
 			}else{
 			  return float64(v), numericInteger, nil
