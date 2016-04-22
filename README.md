@@ -31,3 +31,27 @@ When executed with a context that contains the property `some_number: 2`, the fo
 	
       If the value of 'some_number' is > 1 then this content is written.
 
+## Using templates
+
+Templates are compiled and then executed with a runtime and variable context to produce output. Generally this can be accomplished in just a few lines.
+	
+	// our template source, assume this exists
+	var src string
+	
+	// compile our template source
+	t, err := ego.Compile(src)
+	if err != nil { /* ... */ }
+	
+	// setup the template runtime
+	r := &ego.Runtime{
+		Stdout:	os.Stdout, // where is output written to
+	}
+	
+	// setup our variable context
+	c := map[string]interface{}{
+	  "some_number": 2,
+	}
+	
+	// execute the templte
+	err = t.Exec(r, c)
+	if err != nil { /* ... */ }

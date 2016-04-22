@@ -40,6 +40,15 @@ import (
 func TestType(t *testing.T) {
   var source string
   
+  source = `@(0)`
+  compileAndValidate(t, source, []token{
+    token{span{source, 0, 1}, tokenMeta, "@"},
+    token{span{source, 1, 1}, tokenLParen, "("},
+    token{span{source, 2, 1}, tokenNumber, float64(0)},
+    token{span{source, 3, 1}, tokenRParen, ")"},
+    token{span{source, 4, 0}, tokenEOF, nil},
+  })
+  
   source = `@(123)`
   compileAndValidate(t, source, []token{
     token{span{source, 0, 1}, tokenMeta, "@"},
