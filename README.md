@@ -2,9 +2,7 @@
 
 The Go standard library [template language](https://golang.org/pkg/text/template/) is pretty bad. It's clumsy to work with and, inexplicably, bears almost no resemblance to the language it is implemented in and for.
 
-**Ego** (Embedded Go) is a *work-in-progress* alternative template language that endeavors to be compact, expressive and decidedly Go-like.
-
-It is based conceptually on [Play! Framework templates](https://www.playframework.com/documentation/2.5.x/JavaTemplates).
+**Ego** (Embedded Go) is a *work-in-progress* alternative template language that endeavors to be compact, expressive and decidedly Go-like. It is based conceptually on [Play! Framework templates](https://www.playframework.com/documentation/2.5.x/JavaTemplates).
 
 ## Ego is work in progress
 
