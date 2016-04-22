@@ -316,9 +316,9 @@ type scannerError struct {
  */
 func (s *scannerError) Error() string {
   if s.cause != nil {
-    return fmt.Sprintf("@[%d+%d] %s: %v", s.span.offset, s.span.length, s.message, s.cause)
+    return fmt.Sprintf("@[%d+%d] %s: %v\n%v", s.span.offset, s.span.length, s.message, s.cause, excerptCallout.FormatExcerpt(s.span))
   }else{
-    return fmt.Sprintf("@[%d+%d] %s", s.span.offset, s.span.length, s.message)
+    return fmt.Sprintf("@[%d+%d] %s\n%v", s.span.offset, s.span.length, s.message, excerptCallout.FormatExcerpt(s.span))
   }
 }
 

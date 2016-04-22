@@ -19,6 +19,7 @@ ARCHIVE=$(TARGET_DIR)/$(ARCHIVE_NAME)
 
 # source paths
 SRC		  = $(shell find . -name \*.go -print)
+LIB		  = $(shell find .. -name \*.go -print)
 GOPATH := $(shell cd ../../.. && pwd):$(GOPATH)
 
 .PHONY: all deps build clean
@@ -27,7 +28,7 @@ all: build
 
 deps:
 
-$(PRODUCT): $(SRC)
+$(PRODUCT): $(SRC) $(LIB)
 	mkdir -p $(BUILD_DIR)/bin
 	go build -o $@
 
