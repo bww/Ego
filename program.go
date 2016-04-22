@@ -93,9 +93,9 @@ func (c *context) pop() *context {
 /**
  * Obtain a value
  */
-func (c *context) get(n string) (interface{}, error) {
+func (c *context) get(s span, n string) (interface{}, error) {
   if l := len(c.stack); l > 0 {
-    return derefProp(c.stack[l-1], n)
+    return derefProp(s, c.stack[l-1], n)
   }else{
     return nil, fmt.Errorf("No context")
   }
@@ -246,7 +246,7 @@ func (n *ifNode) exec(runtime *Runtime, context *context) error {
     case bool:
       istrue = v
     default:
-      return fmt.Errorf("Invalid type: %T", v)
+      return runtimeErrorf(n.span, "Invalid type: %T", v)
   }
   
   if istrue {
@@ -288,7 +288,7 @@ func (n *forNode) exec(runtime *Runtime, context *context) error {
     case reflect.Map:
       return n.execMap(runtime, context, deref)
     default:
-      return fmt.Errorf("Expression result is not iterable: %v (%T)", deref, deref)
+      return runtimeErrorf(n.span, "Expression result is not iterable: %v (%T)", deref, deref)
   }
   
 }
@@ -411,7 +411,7 @@ func (n *logicalNotNode) exec(runtime *Runtime, context *context) (interface{}, 
     return nil, err
   }
   
-  rv, err := asBool(rvi)
+  rv, err := asBool(n.right.src(), rvi)
   if err != nil {
     return nil, err
   }
@@ -436,7 +436,7 @@ func (n *logicalOrNode) exec(runtime *Runtime, context *context) (interface{}, e
   if err != nil {
     return nil, err
   }
-  lv, err := asBool(lvi)
+  lv, err := asBool(n.left.src(), lvi)
   if err != nil {
     return nil, err
   }
@@ -449,7 +449,7 @@ func (n *logicalOrNode) exec(runtime *Runtime, context *context) (interface{}, e
   if err != nil {
     return nil, err
   }
-  rv, err := asBool(rvi)
+  rv, err := asBool(n.right.src(), rvi)
   if err != nil {
     return nil, err
   }
@@ -474,7 +474,7 @@ func (n *logicalAndNode) exec(runtime *Runtime, context *context) (interface{}, 
   if err != nil {
     return nil, err
   }
-  lv, err := asBool(lvi)
+  lv, err := asBool(n.left.src(), lvi)
   if err != nil {
     return nil, err
   }
@@ -487,7 +487,7 @@ func (n *logicalAndNode) exec(runtime *Runtime, context *context) (interface{}, 
   if err != nil {
     return nil, err
   }
-  rv, err := asBool(rvi)
+  rv, err := asBool(n.right.src(), rvi)
   if err != nil {
     return nil, err
   }
@@ -513,7 +513,7 @@ func (n *arithmeticNode) exec(runtime *Runtime, context *context) (interface{}, 
   if err != nil {
     return nil, err
   }
-  lv, err := asNumber(lvi)
+  lv, err := asNumber(n.left.src(), lvi)
   if err != nil {
     return nil, err
   }
@@ -522,7 +522,7 @@ func (n *arithmeticNode) exec(runtime *Runtime, context *context) (interface{}, 
   if err != nil {
     return nil, err
   }
-  rv, err := asNumber(rvi)
+  rv, err := asNumber(n.right.src(), rvi)
   if err != nil {
     return nil, err
   }
@@ -539,7 +539,7 @@ func (n *arithmeticNode) exec(runtime *Runtime, context *context) (interface{}, 
     case tokenMod: // truncates to int
       return int64(lv) % int64(rv), nil
     default:
-      return nil, fmt.Errorf("Invalid operator: %v", n.op)
+      return nil, runtimeErrorf(n.span, "Invalid operator: %v", n.op)
   }
   
 }
@@ -574,11 +574,11 @@ func (n *relationalNode) exec(runtime *Runtime, context *context) (interface{}, 
       return lvi != rvi, nil
   }
   
-  lv, err := asNumber(lvi)
+  lv, err := asNumber(n.left.src(), lvi)
   if err != nil {
     return nil, err
   }
-  rv, err := asNumber(rvi)
+  rv, err := asNumber(n.right.src(), rvi)
   if err != nil {
     return nil, err
   }
@@ -593,7 +593,7 @@ func (n *relationalNode) exec(runtime *Runtime, context *context) (interface{}, 
     case tokenGreaterEqual:
       return lv >= rv, nil
     default:
-      return nil, fmt.Errorf("Invalid operator: %v", n.op)
+      return nil, runtimeErrorf(n.span, "Invalid operator: %v", n.op)
   }
   
 }
@@ -622,11 +622,11 @@ func (n *derefNode) exec(runtime *Runtime, context *context) (interface{}, error
   var z interface{}
   switch v := n.right.(type) {
     case *identNode:
-      z, err = context.get(v.ident)
+      z, err = context.get(n.span, v.ident)
     case *derefNode:
       z, err = v.exec(runtime, context)
     default:
-      return nil, fmt.Errorf("Invalid right operand to . (dereference): %v (%T)", v, v)
+      return nil, runtimeErrorf(n.span, "Invalid right operand to . (dereference): %v (%T)", v, v)
   }
   
   return z, err
@@ -644,7 +644,7 @@ type identNode struct {
  * Execute
  */
 func (n *identNode) exec(runtime *Runtime, context *context) (interface{}, error) {
-  return context.get(n.ident)
+  return context.get(n.span, n.ident)
 }
 
 /**
@@ -693,7 +693,7 @@ func (n *continueNode) exec(runtime *Runtime, context *context) (interface{}, er
 /**
  * Obtain an interface value as a bool
  */
-func asBool(value interface{}) (bool, error) {
+func asBool(s span, value interface{}) (bool, error) {
   v := reflect.ValueOf(value)
   switch v.Kind() {
     case reflect.Bool:
@@ -705,14 +705,14 @@ func asBool(value interface{}) (bool, error) {
     case reflect.Float32, reflect.Float64:
       return v.Float() != 0, nil
     default:
-      return false, fmt.Errorf("Cannot cast %v (%T) to bool", value, value)
+      return false, runtimeErrorf(s, "Cannot cast %v (%T) to bool", value, value)
   }
 }
 
 /**
  * Obtain an interface value as a number
  */
-func asNumber(value interface{}) (float64, error) {
+func asNumber(s span, value interface{}) (float64, error) {
   v := reflect.ValueOf(value)
   switch v.Kind() {
     case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -722,14 +722,14 @@ func asNumber(value interface{}) (float64, error) {
     case reflect.Float32, reflect.Float64:
       return v.Float(), nil
     default:
-      return 0, fmt.Errorf("Cannot cast %v (%T) to numeric", value, value)
+      return 0, runtimeErrorf(s, "Cannot cast %v (%T) to numeric", value, value)
   }
 }
 
 /**
  * Dereference
  */
-func derefProp(context interface{}, ident string) (interface{}, error) {
+func derefProp(s span, context interface{}, ident string) (interface{}, error) {
   switch v := context.(type) {
     case Context:
       return v.Variable(ident)
@@ -740,29 +740,29 @@ func derefProp(context interface{}, ident string) (interface{}, error) {
     case map[string]interface{}:
       return v[ident], nil
     default:
-      return derefMember(context, ident)
+      return derefMember(s, context, ident)
   }
 }
 
 /**
  * Execute
  */
-func derefMember(context interface{}, property string) (interface{}, error) {
+func derefMember(s span, context interface{}, property string) (interface{}, error) {
   var v reflect.Value
   
   value := reflect.ValueOf(context)
   deref, _ := derefValue(value)
   if deref.Kind() != reflect.Struct {
-    return nil, fmt.Errorf("Cannot dereference context: %v (%T)", context, context)
+    return nil, runtimeErrorf(s, "Cannot dereference context: %v (%T)", context, context)
   }
   
   v = value.MethodByName(property)
   if v.IsValid() {
     r := v.Call(make([]reflect.Value,0))
     if r == nil {
-      return nil, fmt.Errorf("Method %v of %v (%T) did not return a value", v, value, value)
+      return nil, runtimeErrorf(s, "Method %v of %v (%T) did not return a value", v, value, value)
     }else if l := len(r); l < 1 || l > 2 {
-      return nil, fmt.Errorf("Method %v of %v (%T) must return either (interface{}) or (interface{}, error)", v, value, value)
+      return nil, runtimeErrorf(s, "Method %v of %v (%T) must return either (interface{}) or (interface{}, error)", v, value, value)
     }else if l == 1 {
       return r[0].Interface(), nil
     }else if l == 2 {
@@ -775,7 +775,7 @@ func derefMember(context interface{}, property string) (interface{}, error) {
         case error:
           return r0, e
         default:
-          return nil, fmt.Errorf("Method %v of %v (%T) must return either (interface{}) or (interface{}, error)", v, value, value)
+          return nil, runtimeErrorf(s, "Method %v of %v (%T) must return either (interface{}) or (interface{}, error)", v, value, value)
       }
     }
   }
@@ -785,7 +785,7 @@ func derefMember(context interface{}, property string) (interface{}, error) {
     return v.Interface(), nil
   }
   
-  return nil, fmt.Errorf("No suitable method or field '%v' of %v (%T)", property, value.Interface(), value.Interface())
+  return nil, runtimeErrorf(s, "No suitable method or field '%v' of %v (%T)", property, value.Interface(), value.Interface())
 }
 
 /**
@@ -811,13 +811,20 @@ type runtimeError struct {
 }
 
 /**
+ * Format a runtime error
+ */
+func runtimeErrorf(s span, f string, a ...interface{}) *runtimeError {
+  return &runtimeError{fmt.Sprintf(f, a...), s, nil}
+}
+
+/**
  * Error
  */
 func (e runtimeError) Error() string {
   if e.cause != nil {
-    return fmt.Sprintf("@[%d+%d] %s: %v\n%v", e.span.offset, e.span.length, e.message, e.cause, e.span.excerpt())
+    return fmt.Sprintf("%s: %v\n%v", e.message, e.cause, excerptCallout.FormatExcerpt(e.span))
   }else{
-    return fmt.Sprintf("@[%d+%d] %s\n%v", e.span.offset, e.span.length, e.message, e.span.excerpt())
+    return fmt.Sprintf("%s\n%v", e.message, excerptCallout.FormatExcerpt(e.span))
   }
 }
 

@@ -55,13 +55,13 @@ func main() {
   }
   
   if *fContext == "" {
-    fmt.Printf("%v: No context provided\n", CMD)
+    fmt.Fprintf(os.Stderr, "%v: No context provided\n", CMD)
     return
   }
   
   context, err := readContext(*fContext)
   if err != nil {
-    fmt.Printf("%v: Could not load context: %v\n", CMD, err)
+    fmt.Fprintf(os.Stderr, "%v: Could not load context: %v\n", CMD, err)
     return
   }
   
@@ -73,19 +73,19 @@ func main() {
     
     src, err := readFile(p)
     if err != nil {
-      fmt.Printf("%v: Could not read source: %v: %v\n", CMD, p, err)
+      fmt.Fprintf(os.Stderr, "%v: Could not read source: %v: %v\n", CMD, p, err)
       return
     }
     
     prog, err := ego.Compile(string(src))
     if err != nil {
-      fmt.Printf("%v: Could not compile: %v: %v\n", CMD, p, err)
+      fmt.Fprintf(os.Stderr, "%v: Could not compile: %v: %v\n", CMD, p, err)
       return
     }
     
     err = prog.Exec(runtime, context)
     if err != nil {
-      fmt.Printf("%v: Could not execute: %v: %v\n", CMD, p, err)
+      fmt.Fprintf(os.Stderr, "\n%v: Could not execute: %v: %v\n", CMD, p, err)
       return
     }
     
