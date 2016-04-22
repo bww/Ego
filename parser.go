@@ -652,9 +652,9 @@ type parserError struct {
  */
 func (e parserError) Error() string {
   if e.cause != nil {
-    return fmt.Sprintf("@[%d+%d] %s: %v\n%v", e.span.offset, e.span.length, e.message, e.cause, excerptCallout.FormatExcerpt(e.span))
+    return fmt.Sprintf("%s: %v\n%v", e.message, e.cause, excerptCallout.FormatExcerpt(e.span))
   }else{
-    return fmt.Sprintf("@[%d+%d] %s\n%v", e.span.offset, e.span.length, e.message, excerptCallout.FormatExcerpt(e.span))
+    return fmt.Sprintf("%s\n%v", e.message, excerptCallout.FormatExcerpt(e.span))
   }
 }
 

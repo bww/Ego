@@ -34,10 +34,14 @@ import (
   "os"
   "fmt"
   "flag"
+  "path"
   "ego"
 )
 
+var CMD string
+
 func main() {
+  CMD = path.Base(os.Args[0])
   
   cmdline         := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
   fContext        := cmdline.String   ("context",   "",       "Path to the context data to be used when evaluating a source file. This file must be formatted as JSON.")
@@ -51,13 +55,13 @@ func main() {
   }
   
   if *fContext == "" {
-    fmt.Printf("%v: No context provided\n", os.Args[0])
+    fmt.Printf("%v: No context provided\n", CMD)
     return
   }
   
   context, err := readContext(*fContext)
   if err != nil {
-    fmt.Printf("%v: Could not load context: %v\n", os.Args[0], err)
+    fmt.Printf("%v: Could not load context: %v\n", CMD, err)
     return
   }
   
@@ -69,19 +73,19 @@ func main() {
     
     src, err := readFile(p)
     if err != nil {
-      fmt.Printf("%v: Could not read source: %v: %v\n", os.Args[0], p, err)
+      fmt.Printf("%v: Could not read source: %v: %v\n", CMD, p, err)
       return
     }
     
     prog, err := ego.Compile(string(src))
     if err != nil {
-      fmt.Printf("%v: Could not compile: %v: %v\n", os.Args[0], p, err)
+      fmt.Printf("%v: Could not compile: %v: %v\n", CMD, p, err)
       return
     }
     
     err = prog.Exec(runtime, context)
     if err != nil {
-      fmt.Printf("%v: Could not execute: %v: %v\n", os.Args[0], p, err)
+      fmt.Printf("%v: Could not execute: %v: %v\n", CMD, p, err)
       return
     }
     

@@ -192,11 +192,11 @@ const (
 func (t tokenType) String() string {
   switch t {
     case tokenError:
-      return "Error"
+      return "error"
     case tokenEOF:
       return "EOF"
     case tokenVerbatim:
-      return "Verbatim"
+      return "verbatim"
     case tokenMeta:
       return "@"
     case tokenBlock:
@@ -206,11 +206,11 @@ func (t tokenType) String() string {
     case tokenAtem:
       return "#"
     case tokenString:
-      return "String"
+      return "string"
     case tokenNumber:
-      return "Number"
+      return "number"
     case tokenIdentifier:
-      return "Ident"
+      return "ident"
     case tokenIf:
       return "if"
     case tokenElse:
@@ -316,9 +316,9 @@ type scannerError struct {
  */
 func (s *scannerError) Error() string {
   if s.cause != nil {
-    return fmt.Sprintf("@[%d+%d] %s: %v\n%v", s.span.offset, s.span.length, s.message, s.cause, excerptCallout.FormatExcerpt(s.span))
+    return fmt.Sprintf("%s: %v\n%v", s.message, s.cause, excerptCallout.FormatExcerpt(s.span))
   }else{
-    return fmt.Sprintf("@[%d+%d] %s\n%v", s.span.offset, s.span.length, s.message, excerptCallout.FormatExcerpt(s.span))
+    return fmt.Sprintf("%s\n%v", s.message, excerptCallout.FormatExcerpt(s.span))
   }
 }
 
