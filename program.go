@@ -599,6 +599,42 @@ func (n *relationalNode) exec(runtime *Runtime, context *context) (interface{}, 
 }
 
 /**
+ * A dereference expression node
+ */
+type derefNode struct {
+  node
+  left, right expression
+}
+
+/**
+ * Execute
+ */
+func (n *derefNode) exec(runtime *Runtime, context *context) (interface{}, error) {
+  
+  v, err := n.left.exec(runtime, context)
+  if err != nil {
+    return nil, err
+  }
+  
+  context.push(v)
+  defer context.pop()
+  
+  var z interface{}
+  switch v := n.right.(type) {
+    case *identNode:
+      z, err = context.get(n.span, v.ident)
+    case *derefNode:
+      z, err = v.exec(runtime, context)
+    case *indexNode:
+      z, err = v.exec(runtime, context)
+    default:
+      return nil, runtimeErrorf(n.span, "Invalid right operand to . (dereference): %T", v)
+  }
+  
+  return z, err
+}
+
+/**
  * An index (subscript) expression node
  */
 type indexNode struct {
@@ -623,7 +659,7 @@ func (n *indexNode) exec(runtime *Runtime, context *context) (interface{}, error
   
   prop := reflect.ValueOf(sub)
   if prop.Kind() == reflect.Invalid {
-    return nil, runtimeErrorf(n.right.src(), "Subscript expression cannot evaluate to nil or a zero value")
+    return nil, runtimeErrorf(n.right.src(), "Subscript expression is nil")
   }
   
   context.push(val)
@@ -671,42 +707,6 @@ func (n *indexNode) execMap(runtime *Runtime, context *context, val reflect.Valu
   }
   
   return val.MapIndex(key).Interface(), nil
-}
-
-/**
- * A dereference expression node
- */
-type derefNode struct {
-  node
-  left, right expression
-}
-
-/**
- * Execute
- */
-func (n *derefNode) exec(runtime *Runtime, context *context) (interface{}, error) {
-  
-  v, err := n.left.exec(runtime, context)
-  if err != nil {
-    return nil, err
-  }
-  
-  context.push(v)
-  defer context.pop()
-  
-  var z interface{}
-  switch v := n.right.(type) {
-    case *identNode:
-      z, err = context.get(n.span, v.ident)
-    case *derefNode:
-      z, err = v.exec(runtime, context)
-    case *indexNode:
-      z, err = v.exec(runtime, context)
-    default:
-      return nil, runtimeErrorf(n.span, "Invalid right operand to . (dereference): %T", v)
-  }
-  
-  return z, err
 }
 
 /**
