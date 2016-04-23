@@ -288,7 +288,7 @@ func (n *forNode) exec(runtime *Runtime, context *context) error {
     case reflect.Map:
       return n.execMap(runtime, context, deref)
     default:
-      return runtimeErrorf(n.span, "Expression result is not iterable: %T", deref)
+      return runtimeErrorf(n.span, "Expression result is not iterable: %v", deref.Type())
   }
   
 }
@@ -630,7 +630,7 @@ func (n *indexNode) exec(runtime *Runtime, context *context) (interface{}, error
     case reflect.Map:
       return n.execMap(runtime, context, deref, reflect.ValueOf(sub))
     default:
-      return nil, runtimeErrorf(n.span, "Expression result is not indexable: %T", deref)
+      return nil, runtimeErrorf(n.span, "Expression result is not indexable: %v", deref.Type())
   }
   
 }
@@ -772,7 +772,7 @@ func asBool(s span, value interface{}) (bool, error) {
     case reflect.Float32, reflect.Float64:
       return v.Float() != 0, nil
     default:
-      return false, runtimeErrorf(s, "Cannot cast %T to bool", value)
+      return false, runtimeErrorf(s, "Cannot cast %v to bool", v.Type())
   }
 }
 

@@ -39,37 +39,37 @@ import (
  */
 func TestIf(t *testing.T) {
   
-  compileAndRun(t, map[string]interface{}{"a": true},
+  compileAndRun(t, true, true, map[string]interface{}{"a": true},
     `@if (a) { This is displayed if 'a' is true, which it is. }
      else { Otherwise this. }`,
     ` This is displayed if 'a' is true, which it is. `,
   )
   
-  compileAndRun(t, map[string]interface{}{"a": true},
+  compileAndRun(t, true, true, map[string]interface{}{"a": true},
     `@if !a { This is displayed if '!a' is true, which it is not. }
      else { Otherwise this is displayed. }`,
     ` Otherwise this is displayed. `,
   )
   
-  compileAndRun(t, map[string]interface{}{"a": false, "b": true},
+  compileAndRun(t, true, true, map[string]interface{}{"a": false, "b": true},
     `@if a { This is displayed if 'a' is true, which it is not. }
      else if b { This is displayed if 'b' is true, which it is. }`,
     ` This is displayed if 'b' is true, which it is. `,
   )
   
-  compileAndRun(t, map[string]interface{}{"a": false, "b": false},
+  compileAndRun(t, true, true, map[string]interface{}{"a": false, "b": false},
     `@if a { This is displayed if 'a' is true, which it is not. }
      else if b { This is displayed if 'b' is true, which it also is not. }
      else { Otherwise this is displayed. }`,
     ` Otherwise this is displayed. `,
   )
   
-  compileAndRun(t, map[string]interface{}{"a": true},
+  compileAndRun(t, true, true, map[string]interface{}{"a": true},
     `@if (a) { A }else{ B }`, // braces tight around 'else'
     ` A `,
   )
   
-  compileAndRun(t, map[string]interface{}{"a": true},
+  compileAndRun(t, true, true, map[string]interface{}{"a": true},
     `@if (a) { A \} } }`, // unescaped '}' outside block, escaped '}' inside block
     ` A }  }`,
   )

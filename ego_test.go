@@ -100,7 +100,7 @@ func compileAndValidate(t *testing.T, source string, expect []token) {
   fmt.Println("---")
 }
 
-func compileAndRun(t *testing.T, context interface{}, source, expect string) {
+func compileAndRun(t *testing.T, compile, exec bool, context interface{}, source, expect string) {
   fmt.Println(source)
   
   output  := &bytes.Buffer{}
@@ -109,10 +109,20 @@ func compileAndRun(t *testing.T, context interface{}, source, expect string) {
   runtime := &Runtime{output}
   
   program, err := parser.parse()
-  if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
+  if compile {
+    if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
+  }else{
+    assert.NotNil(t, err, "Expected compile error")
+    return
+  }
   
   err = program.exec(runtime, newContext(context))
-  if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
+  if exec {
+    if !assert.Nil(t, err, fmt.Sprintf("%v", err)) { return }
+  }else{
+    assert.NotNil(t, err, "Expected runtime error")
+    return
+  }
   
   fmt.Printf("--> %v\n", source)
   fmt.Printf("<-- %v\n", string(output.Bytes()))

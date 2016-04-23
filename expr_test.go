@@ -36,27 +36,32 @@ import (
 
 func TestExpr(t *testing.T) {
   
-  compileAndRun(t, map[string]interface{}{"a": []string{"first", "second"}},
+  compileAndRun(t, true, true, map[string]interface{}{"a": []string{"first", "second"}},
     `@(a[0]), @(a[1])`,
     `first, second`,
   )
   
-  compileAndRun(t, map[string]interface{}{"a": map[string]string{"k1": "first", "k2": "second"}},
+  compileAndRun(t, true, true, map[string]interface{}{"a": map[string]string{"k1": "first", "k2": "second"}},
     `@(a["k1"]), @(a["k2"])`,
     `first, second`,
   )
   
-  compileAndRun(t, map[string]interface{}{"a": map[string]string{"k1": "first", "k2": "second"}},
+  compileAndRun(t, true, true, map[string]interface{}{"a": map[string]string{"k1": "first", "k2": "second"}},
     `@(a.k1), @(a.k2)`,
     `first, second`,
   )
   
-  compileAndRun(t, map[string]interface{}{
+  compileAndRun(t, true, true, map[string]interface{}{
       "a": map[string]string{"k1": "first", "k2": "second"},
       "key1": "k1",
       "key2": "k2",
     },
     `@(a[key1]), @(a[key2])`,
+    `first, second`,
+  )
+  
+  compileAndRun(t, true, false, map[string]interface{}{"a": map[string]string{"k1": "first", "k2": "second"}},
+    `@(a[1]), @(a[2])`,
     `first, second`,
   )
   
