@@ -288,7 +288,7 @@ func (n *forNode) exec(runtime *Runtime, context *context) error {
     case reflect.Map:
       return n.execMap(runtime, context, deref)
     default:
-      return runtimeErrorf(n.span, "Expression result is not iterable: %v (%T)", deref, deref)
+      return runtimeErrorf(n.span, "Expression result is not iterable: %T", deref)
   }
   
 }
@@ -626,7 +626,7 @@ func (n *derefNode) exec(runtime *Runtime, context *context) (interface{}, error
     case *derefNode:
       z, err = v.exec(runtime, context)
     default:
-      return nil, runtimeErrorf(n.span, "Invalid right operand to . (dereference): %v (%T)", v, v)
+      return nil, runtimeErrorf(n.span, "Invalid right operand to . (dereference): %T", v)
   }
   
   return z, err
@@ -705,7 +705,7 @@ func asBool(s span, value interface{}) (bool, error) {
     case reflect.Float32, reflect.Float64:
       return v.Float() != 0, nil
     default:
-      return false, runtimeErrorf(s, "Cannot cast %v (%T) to bool", value, value)
+      return false, runtimeErrorf(s, "Cannot cast %T to bool", value)
   }
 }
 
@@ -722,7 +722,7 @@ func asNumber(s span, value interface{}) (float64, error) {
     case reflect.Float32, reflect.Float64:
       return v.Float(), nil
     default:
-      return 0, runtimeErrorf(s, "Cannot cast %v (%T) to numeric", value, value)
+      return 0, runtimeErrorf(s, "Cannot cast %T to numeric", value)
   }
 }
 
@@ -753,16 +753,16 @@ func derefMember(s span, context interface{}, property string) (interface{}, err
   value := reflect.ValueOf(context)
   deref, _ := derefValue(value)
   if deref.Kind() != reflect.Struct {
-    return nil, runtimeErrorf(s, "Cannot dereference context: %v (%T)", context, context)
+    return nil, runtimeErrorf(s, "Cannot dereference variable: %T", context)
   }
   
   v = value.MethodByName(property)
   if v.IsValid() {
     r := v.Call(make([]reflect.Value,0))
     if r == nil {
-      return nil, runtimeErrorf(s, "Method %v of %v (%T) did not return a value", v, value, value)
+      return nil, runtimeErrorf(s, "Method %v of %T did not return a value", v, value)
     }else if l := len(r); l < 1 || l > 2 {
-      return nil, runtimeErrorf(s, "Method %v of %v (%T) must return either (interface{}) or (interface{}, error)", v, value, value)
+      return nil, runtimeErrorf(s, "Method %v of %T must return either (interface{}) or (interface{}, error)", v, value)
     }else if l == 1 {
       return r[0].Interface(), nil
     }else if l == 2 {
@@ -775,7 +775,7 @@ func derefMember(s span, context interface{}, property string) (interface{}, err
         case error:
           return r0, e
         default:
-          return nil, runtimeErrorf(s, "Method %v of %v (%T) must return either (interface{}) or (interface{}, error)", v, value, value)
+          return nil, runtimeErrorf(s, "Method %v of %T must return either (interface{}) or (interface{}, error)", v, value)
       }
     }
   }
@@ -785,7 +785,7 @@ func derefMember(s span, context interface{}, property string) (interface{}, err
     return v.Interface(), nil
   }
   
-  return nil, runtimeErrorf(s, "No suitable method or field '%v' of %v (%T)", property, value.Interface(), value.Interface())
+  return nil, runtimeErrorf(s, "No suitable method or field '%v' of %T", property, value)
 }
 
 /**
