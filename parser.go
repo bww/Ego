@@ -529,7 +529,7 @@ func (p *parser) parseArithmeticL2() (expression, error) {
  */
 func (p *parser) parseDeref() (expression, error) {
   
-  left, err := p.parsePrimary()
+  left, err := p.parseIndex()
   if err != nil {
     return nil, err
   }
@@ -559,6 +559,41 @@ func (p *parser) parseDeref() (expression, error) {
       return nil, fmt.Errorf("Expected identifier: %v (%T)", right)
   }
   
+}
+
+/**
+ * Parse an index expression
+ */
+func (p *parser) parseIndex() (expression, error) {
+  
+  left, err := p.parsePrimary()
+  if err != nil {
+    return nil, err
+  }
+  
+  op := p.peek(0)
+  switch op.which {
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", op)
+    case tokenLBracket:
+      break // valid token
+    default:
+      return left, nil
+  }
+  
+  right, err := p.parseExpression()
+  if err != nil {
+    return nil, err
+  }
+  
+  t, err := p.nextAssert(tokenRBracket)
+  if err != nil {
+    return nil, err
+  }
+  
+  return &indexNode{node{encompass(op.span, left.src(), right.src(), t.span), &op}, left, right}, nil
 }
 
 /**

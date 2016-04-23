@@ -599,6 +599,73 @@ func (n *relationalNode) exec(runtime *Runtime, context *context) (interface{}, 
 }
 
 /**
+ * An index (subscript) expression node
+ */
+type indexNode struct {
+  node
+  left, right expression
+}
+
+/**
+ * Execute
+ */
+func (n *indexNode) exec(runtime *Runtime, context *context) (interface{}, error) {
+  
+  val, err := n.left.exec(runtime, context)
+  if err != nil {
+    return nil, err
+  }
+  
+  sub, err := n.right.exec(runtime, context)
+  if err != nil {
+    return nil, err
+  }
+  
+  deref, _ := derefValue(reflect.ValueOf(val))
+  switch deref.Kind() {
+    case reflect.Array:
+      return n.execArray(runtime, context, deref, reflect.ValueOf(sub))
+    case reflect.Slice:
+      return n.execArray(runtime, context, deref, reflect.ValueOf(sub))
+    case reflect.Map:
+      return n.execMap(runtime, context, deref, reflect.ValueOf(sub))
+    default:
+      return nil, runtimeErrorf(n.span, "Expression result is not indexable: %T", deref)
+  }
+  
+}
+
+/**
+ * Execute
+ */
+func (n *indexNode) execArray(runtime *Runtime, context *context, val reflect.Value, index reflect.Value) (interface{}, error) {
+  
+  i, err := asNumberValue(n.right.src(), index)
+  if err != nil {
+    return nil, err
+  }
+  
+  l := val.Len()
+  if int(i) < 0 || int(i) >= l {
+    return nil, runtimeErrorf(n.span, "Index out-of-bounds: %v", i)
+  }
+  
+  return val.Index(int(i)).Interface(), nil
+}
+
+/**
+ * Execute
+ */
+func (n *indexNode) execMap(runtime *Runtime, context *context, val reflect.Value, key reflect.Value) (interface{}, error) {
+  
+  if !key.Type().AssignableTo(val.Type().Key()) {
+    return nil, runtimeErrorf(n.span, "Expression result is not assignable to map key type: %v != %v", key.Type(), val.Type().Key())
+  }
+  
+  return val.MapIndex(key).Interface(), nil
+}
+
+/**
  * A dereference expression node
  */
 type derefNode struct {
@@ -712,8 +779,14 @@ func asBool(s span, value interface{}) (bool, error) {
 /**
  * Obtain an interface value as a number
  */
-func asNumber(s span, value interface{}) (float64, error) {
-  v := reflect.ValueOf(value)
+func asNumber(s span, v interface{}) (float64, error) {
+  return asNumberValue(s, reflect.ValueOf(v))
+}
+
+/**
+ * Obtain an interface value as a number
+ */
+func asNumberValue(s span, v reflect.Value) (float64, error) {
   switch v.Kind() {
     case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
       return float64(v.Int()), nil
@@ -722,7 +795,7 @@ func asNumber(s span, value interface{}) (float64, error) {
     case reflect.Float32, reflect.Float64:
       return v.Float(), nil
     default:
-      return 0, runtimeErrorf(s, "Cannot cast %T to numeric", value)
+      return 0, runtimeErrorf(s, "Cannot cast %v to numeric", v.Type())
   }
 }
 
