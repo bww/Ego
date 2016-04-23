@@ -621,14 +621,22 @@ func (n *indexNode) exec(runtime *Runtime, context *context) (interface{}, error
     return nil, err
   }
   
+  prop := reflect.ValueOf(sub)
+  if prop.Kind() == reflect.Invalid {
+    return nil, runtimeErrorf(n.right.src(), "Subscript expression cannot evaluate to nil or a zero value")
+  }
+  
+  context.push(val)
+  defer context.pop()
+  
   deref, _ := derefValue(reflect.ValueOf(val))
   switch deref.Kind() {
     case reflect.Array:
-      return n.execArray(runtime, context, deref, reflect.ValueOf(sub))
+      return n.execArray(runtime, context, deref, prop)
     case reflect.Slice:
-      return n.execArray(runtime, context, deref, reflect.ValueOf(sub))
+      return n.execArray(runtime, context, deref, prop)
     case reflect.Map:
-      return n.execMap(runtime, context, deref, reflect.ValueOf(sub))
+      return n.execMap(runtime, context, deref, prop)
     default:
       return nil, runtimeErrorf(n.span, "Expression result is not indexable: %v", deref.Type())
   }
@@ -691,6 +699,8 @@ func (n *derefNode) exec(runtime *Runtime, context *context) (interface{}, error
     case *identNode:
       z, err = context.get(n.span, v.ident)
     case *derefNode:
+      z, err = v.exec(runtime, context)
+    case *indexNode:
       z, err = v.exec(runtime, context)
     default:
       return nil, runtimeErrorf(n.span, "Invalid right operand to . (dereference): %T", v)

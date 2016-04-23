@@ -553,10 +553,10 @@ func (p *parser) parseDeref() (expression, error) {
   }
   
   switch v := right.(type) {
-    case *identNode, *derefNode:
+    case *identNode, *derefNode, *indexNode:
       return &derefNode{node{encompass(op.span, left.src()), &op}, left, v}, nil
     default:
-      return nil, fmt.Errorf("Expected identifier: %v (%T)", right)
+      return nil, fmt.Errorf("Expected identifier: %T", right)
   }
   
 }
@@ -570,6 +570,14 @@ func (p *parser) parseIndex() (expression, error) {
   if err != nil {
     return nil, err
   }
+  
+  return p.parseSubscript(left)
+}
+
+/**
+ * Parse an index expression
+ */
+func (p *parser) parseSubscript(left expression) (expression, error) {
   
   op := p.peek(0)
   switch op.which {
@@ -594,7 +602,7 @@ func (p *parser) parseIndex() (expression, error) {
     return nil, err
   }
   
-  return &indexNode{node{encompass(op.span, left.src(), right.src(), t.span), &op}, left, right}, nil
+  return p.parseSubscript(&indexNode{node{encompass(op.span, left.src(), right.src(), t.span), &op}, left, right})
 }
 
 /**
