@@ -288,7 +288,7 @@ func (n *forNode) exec(runtime *Runtime, context *context) error {
     case reflect.Map:
       return n.execMap(runtime, context, deref)
     default:
-      return runtimeErrorf(n.span, "Expression result is not iterable: %v", deref.Type())
+      return runtimeErrorf(n.span, "Expression result is not iterable: %v", displayType(deref))
   }
   
 }
@@ -674,7 +674,7 @@ func (n *indexNode) exec(runtime *Runtime, context *context) (interface{}, error
     case reflect.Map:
       return n.execMap(runtime, context, deref, prop)
     default:
-      return nil, runtimeErrorf(n.span, "Expression result is not indexable: %v", deref.Type())
+      return nil, runtimeErrorf(n.span, "Expression result is not indexable: %v", displayType(deref))
   }
   
 }
@@ -782,7 +782,7 @@ func asBool(s span, value interface{}) (bool, error) {
     case reflect.Float32, reflect.Float64:
       return v.Float() != 0, nil
     default:
-      return false, runtimeErrorf(s, "Cannot cast %v to bool", v.Type())
+      return false, runtimeErrorf(s, "Cannot cast %v to bool", displayType(v))
   }
 }
 
@@ -805,7 +805,7 @@ func asNumberValue(s span, v reflect.Value) (float64, error) {
     case reflect.Float32, reflect.Float64:
       return v.Float(), nil
     default:
-      return 0, runtimeErrorf(s, "Cannot cast %v to numeric", v.Type())
+      return 0, runtimeErrorf(s, "Cannot cast %v to numeric", displayType(v))
   }
 }
 
@@ -832,7 +832,7 @@ func derefProp(s span, context interface{}, ident string) (interface{}, error) {
     case reflect.Struct:
       return derefMember(s, val, ident)
     default:
-      return nil, runtimeErrorf(s, "Cannot dereference variable: %v", val.Type())
+      return nil, runtimeErrorf(s, "Cannot dereference variable: %v", displayType(val))
   }
   
 }
@@ -857,16 +857,16 @@ func derefMember(s span, val reflect.Value, property string) (interface{}, error
   var v reflect.Value
   
   if val.Kind() != reflect.Struct {
-    return nil, runtimeErrorf(s, "Cannot dereference variable: %v", val.Type())
+    return nil, runtimeErrorf(s, "Cannot dereference variable: %v", displayType(val))
   }
   
   v = val.MethodByName(property)
   if v.IsValid() {
     r := v.Call(make([]reflect.Value,0))
     if r == nil {
-      return nil, runtimeErrorf(s, "Method %v of %v did not return a value", v, val.Type())
+      return nil, runtimeErrorf(s, "Method %v of %v did not return a value", v, displayType(val))
     }else if l := len(r); l < 1 || l > 2 {
-      return nil, runtimeErrorf(s, "Method %v of %v must return either (interface{}) or (interface{}, error)", v, val.Type())
+      return nil, runtimeErrorf(s, "Method %v of %v must return either (interface{}) or (interface{}, error)", v, displayType(val))
     }else if l == 1 {
       return r[0].Interface(), nil
     }else if l == 2 {
@@ -879,7 +879,7 @@ func derefMember(s span, val reflect.Value, property string) (interface{}, error
         case error:
           return r0, e
         default:
-          return nil, runtimeErrorf(s, "Method %v of %v must return either (interface{}) or (interface{}, error)", v, val.Type())
+          return nil, runtimeErrorf(s, "Method %v of %v must return either (interface{}) or (interface{}, error)", v, displayType(val))
       }
     }
   }
@@ -889,7 +889,7 @@ func derefMember(s span, val reflect.Value, property string) (interface{}, error
     return v.Interface(), nil
   }
   
-  return nil, runtimeErrorf(s, "No suitable method or field '%v' of %v", property, val.Type())
+  return nil, runtimeErrorf(s, "No suitable method or field '%v' of %v", property, displayType(val))
 }
 
 /**
@@ -903,6 +903,17 @@ func derefValue(value reflect.Value) (reflect.Value, int) {
     c++
   }
   return v, c
+}
+
+/**
+ * Obtain the presentation type of a value
+ */
+func displayType(v reflect.Value) string {
+  if v.Kind() == reflect.Invalid {
+    return "<nil>"
+  }else{
+    return v.Type().String()
+  }
 }
 
 /**
