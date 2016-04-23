@@ -529,7 +529,7 @@ func (p *parser) parseArithmeticL2() (expression, error) {
  */
 func (p *parser) parseDeref() (expression, error) {
   
-  left, err := p.parseIndex()
+  left, err := p.parseInvoke()
   if err != nil {
     return nil, err
   }
@@ -553,12 +553,48 @@ func (p *parser) parseDeref() (expression, error) {
   }
   
   switch v := right.(type) {
-    case *identNode, *derefNode, *indexNode:
+    case *identNode, *derefNode, *indexNode, *invokeNode:
       return &derefNode{node{encompass(op.span, left.src()), &op}, left, v}, nil
     default:
-      return nil, fmt.Errorf("Expected identifier: %T", right)
+      return nil, fmt.Errorf("Expected ident, deref, subscript or method call: %T", right)
   }
   
+}
+
+/**
+ * Parse a function invocation expression
+ */
+func (p *parser) parseInvoke() (expression, error) {
+  
+  left, err := p.parseIndex()
+  if err != nil {
+    return nil, err
+  }
+  
+  op := p.peek(0)
+  switch op.which {
+    case tokenEOF:
+      return nil, fmt.Errorf("Unexpected end-of-input")
+    case tokenError:
+      return nil, fmt.Errorf("Error: %v", op)
+    case tokenLParen:
+      break // valid token
+    default:
+      return left, nil
+  }
+  
+  p.next() // consume the '('
+  params, err := p.parseExprList()
+  if err != nil {
+    return nil, err
+  }
+  
+  t, err := p.nextAssert(tokenRParen)
+  if err != nil {
+    return nil, err
+  }
+  
+  return &invokeNode{node{encompass(op.span, left.src(), t.span), &op}, left, params}, nil
 }
 
 /**
@@ -652,6 +688,38 @@ func (p *parser) parseParen() (expression, error) {
   }
   
   return e, nil
+}
+
+/**
+ * Parse an expression list
+ */
+func (p *parser) parseExprList() ([]expression, error) {
+  list := make([]expression, 0)
+  
+  t := p.peek(0)
+  if t.which == tokenRParen {
+    return list, nil // end of list
+  }
+  
+  for {
+    
+    expr, err := p.parseExpression()
+    if err != nil {
+      return nil, err
+    }
+    
+    list = append(list, expr)
+    
+    t = p.peek(0)
+    if t.which == tokenComma {
+      p.next() // consume the comma
+    }else{
+      break
+    }
+    
+  }
+  
+  return list, nil
 }
 
 /**

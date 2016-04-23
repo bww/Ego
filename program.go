@@ -623,10 +623,8 @@ func (n *derefNode) exec(runtime *Runtime, context *context) (interface{}, error
   switch v := n.right.(type) {
     case *identNode:
       z, err = context.get(n.span, v.ident)
-    case *derefNode:
-      z, err = v.exec(runtime, context)
-    case *indexNode:
-      z, err = v.exec(runtime, context)
+    case *derefNode, *indexNode, *invokeNode:
+      z, err = n.right.exec(runtime, context)
     default:
       return nil, runtimeErrorf(n.span, "Invalid right operand to . (dereference): %T", v)
   }
@@ -707,6 +705,30 @@ func (n *indexNode) execMap(runtime *Runtime, context *context, val reflect.Valu
   }
   
   return val.MapIndex(key).Interface(), nil
+}
+
+/**
+ * A function invocation expression node
+ */
+type invokeNode struct {
+  node
+  left    expression
+  params  []expression
+}
+
+/**
+ * Execute
+ */
+func (n *invokeNode) exec(runtime *Runtime, context *context) (interface{}, error) {
+  
+  val, err := n.left.exec(runtime, context)
+  if err != nil {
+    return nil, err
+  }
+  
+  fmt.Println("LEFT", val)
+  
+  return nil, runtimeErrorf(n.span, "Not implemented")
 }
 
 /**

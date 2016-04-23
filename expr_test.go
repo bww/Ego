@@ -34,7 +34,7 @@ import (
   "testing"
 )
 
-func TestExpr(t *testing.T) {
+func TestDerefAndIndex(t *testing.T) {
   
   compileAndRun(t, true, true, map[string]interface{}{"a": []string{"first", "second"}},
     `@(a[0]), @(a[1])`,
@@ -48,15 +48,6 @@ func TestExpr(t *testing.T) {
   
   compileAndRun(t, true, true, map[string]interface{}{"a": map[string]string{"k1": "first", "k2": "second"}},
     `@(a.k1), @(a.k2)`,
-    `first, second`,
-  )
-  
-  compileAndRun(t, true, true, map[string]interface{}{
-      "a": map[string]string{"k1": "first", "k2": "second"},
-      "key1": "k1",
-      "key2": "k2",
-    },
-    `@(a[key1]), @(a[key2])`,
     `first, second`,
   )
   
@@ -87,6 +78,24 @@ func TestExpr(t *testing.T) {
   
   compileAndRun(t, true, false, map[string]interface{}{"a": map[string]string{"k1": "first", "k2": "second"}},
     `@(a[1]), @(a[2])`,
+    `first, second`,
+  )
+  
+  compileAndRun(t, true, true, map[string]interface{}{
+      "a": map[string]string{"k1": "first", "k2": "second"},
+      "key1": "k1",
+      "key2": "k2",
+    },
+    `@(a[key1]), @(a[key2])`,
+    `first, second`,
+  )
+  
+}
+
+func TestFuncCall(t *testing.T) {
+  
+  compileAndRun(t, true, true, map[string]interface{}{"a": []string{"first", "second"}},
+    `@(a.foo(a, b, c)), @(a.bar(1, 2, 3))`,
     `first, second`,
   )
   
