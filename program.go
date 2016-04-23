@@ -803,6 +803,7 @@ func asNumberValue(s span, v reflect.Value) (float64, error) {
  * Dereference
  */
 func derefProp(s span, context interface{}, ident string) (interface{}, error) {
+  
   switch v := context.(type) {
     case Context:
       return v.Variable(ident)
@@ -812,30 +813,50 @@ func derefProp(s span, context interface{}, ident string) (interface{}, error) {
       return v(ident)
     case map[string]interface{}:
       return v[ident], nil
-    default:
-      return derefMember(s, context, ident)
   }
+  
+  val, _ := derefValue(reflect.ValueOf(context))
+  switch val.Kind() {
+    case reflect.Map:
+      return derefMap(s, val, ident)
+    case reflect.Struct:
+      return derefMember(s, val, ident)
+    default:
+      return nil, runtimeErrorf(s, "Cannot dereference variable: %v", val.Type())
+  }
+  
 }
 
 /**
  * Execute
  */
-func derefMember(s span, context interface{}, property string) (interface{}, error) {
-  var v reflect.Value
+func derefMap(s span, val reflect.Value, property string) (interface{}, error) {
+  key := reflect.ValueOf(property)
   
-  value := reflect.ValueOf(context)
-  deref, _ := derefValue(value)
-  if deref.Kind() != reflect.Struct {
-    return nil, runtimeErrorf(s, "Cannot dereference variable: %T", context)
+  if !key.Type().AssignableTo(val.Type().Key()) {
+    return nil, runtimeErrorf(s, "Expression result is not assignable to map key type: %v != %v", key.Type(), val.Type().Key())
   }
   
-  v = value.MethodByName(property)
+  return val.MapIndex(key).Interface(), nil
+}
+
+/**
+ * Execute
+ */
+func derefMember(s span, val reflect.Value, property string) (interface{}, error) {
+  var v reflect.Value
+  
+  if val.Kind() != reflect.Struct {
+    return nil, runtimeErrorf(s, "Cannot dereference variable: %v", val.Type())
+  }
+  
+  v = val.MethodByName(property)
   if v.IsValid() {
     r := v.Call(make([]reflect.Value,0))
     if r == nil {
-      return nil, runtimeErrorf(s, "Method %v of %T did not return a value", v, value)
+      return nil, runtimeErrorf(s, "Method %v of %v did not return a value", v, val.Type())
     }else if l := len(r); l < 1 || l > 2 {
-      return nil, runtimeErrorf(s, "Method %v of %T must return either (interface{}) or (interface{}, error)", v, value)
+      return nil, runtimeErrorf(s, "Method %v of %v must return either (interface{}) or (interface{}, error)", v, val.Type())
     }else if l == 1 {
       return r[0].Interface(), nil
     }else if l == 2 {
@@ -848,17 +869,17 @@ func derefMember(s span, context interface{}, property string) (interface{}, err
         case error:
           return r0, e
         default:
-          return nil, runtimeErrorf(s, "Method %v of %T must return either (interface{}) or (interface{}, error)", v, value)
+          return nil, runtimeErrorf(s, "Method %v of %v must return either (interface{}) or (interface{}, error)", v, val.Type())
       }
     }
   }
   
-  v = deref.FieldByName(property)
+  v = val.FieldByName(property)
   if v.IsValid() {
     return v.Interface(), nil
   }
   
-  return nil, runtimeErrorf(s, "No suitable method or field '%v' of %T", property, value)
+  return nil, runtimeErrorf(s, "No suitable method or field '%v' of %v", property, val.Type())
 }
 
 /**

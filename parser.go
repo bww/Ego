@@ -583,6 +583,7 @@ func (p *parser) parseIndex() (expression, error) {
       return left, nil
   }
   
+  p.next() // consume the '['
   right, err := p.parseExpression()
   if err != nil {
     return nil, err
@@ -623,7 +624,7 @@ func (p *parser) parsePrimary() (expression, error) {
     case tokenNil:
       return &literalNode{node{t.span, &t}, nil}, nil
     default:
-      return nil, fmt.Errorf("Illegal token in primary expression: %v", t)
+      return nil, invalidTokenError(t, tokenLParen, tokenBreak, tokenContinue, tokenIdentifier, tokenNumber, tokenString, tokenTrue, tokenFalse, tokenNil)
   }
 }
 
