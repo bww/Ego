@@ -79,13 +79,13 @@ func main() {
     
     prog, err := ego.Compile(string(src))
     if err != nil {
-      fmt.Fprintf(os.Stderr, "%v: Could not compile: %v: %v\n", CMD, p, err)
+      fmt.Fprintf(os.Stderr, "%v: %v: %v\n", CMD, p, err)
       return
     }
     
     err = prog.Exec(runtime, context)
     if err != nil {
-      fmt.Fprintf(os.Stderr, "\n%v: Could not execute: %v: %v\n", CMD, p, err)
+      fmt.Fprintf(os.Stderr, "\n%v: %v: %v\n", CMD, p, err)
       return
     }
     

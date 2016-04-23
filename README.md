@@ -1,18 +1,20 @@
 # Ego, a Go-like template language
 
-The Go standard library [template language](https://golang.org/pkg/text/template/) is pretty bad. It's clumsy to work with and, inexplicably, bears almost no resemblance to the language it is implemented in and for.
+The Go standard library [template language](https://golang.org/pkg/text/template/) is pretty weird. It's clumsy to work with and its inexplicably quirky pipeline syntax bears almost no resemblance to the language it is implemented in and for. (Just try to index into an array the obvious way and see how that goes for you.)
 
-**Ego** (Embedded Go) is a *work-in-progress* alternative template language that endeavors to be compact, expressive and decidedly Go-like. It is based conceptually on [Play! Framework templates](https://www.playframework.com/documentation/2.5.x/JavaTemplates).
+**Ego** (Embedded Go) is an alternative template language that endeavors to be compact, expressive and decidedly Go-like. It is inspired by the [Play Framework template language](https://www.playframework.com/documentation/2.5.x/JavaTemplates), which was in turn inspired by [ASP.NET Razor](http://www.asp.net/web-pages/overview/getting-started/introducing-razor-syntax-c).
 
 ## Ego is work in progress
 
-Ego is not ready for production. Basic functionality such as expressions, `if` and `for` statements work, however many features are missing and more tests are needed.
+Ego is not ready for production. Basic functionality such as expressions, `if` and `for` statements work, however many features are missing and more tests are needed. If you agree that the status quo in Go templates needs an update, your pull requests would be most welcome!
 
 ## Writing templates
 
-Templates are interpreted as static content that is passed through unmodified except for dynamic statements which are evaluated and output dynamically.
+Ego sources, like most template languages, are interpreted as static content in which is interspersed dynamic statements that are evaluated and output conditionally.
 
-The special '**@**' character introduces a dynamic statement. You don't need to explicitly close a dynamic statement, the end is inferred from context. This allows you to more easily write dynamic content without dealing with a ton of fiddly braces closing not just a statement itself, but each individual line!
+**The special `@` character introduces dynamic content** and dynamic statements generally look and work like regular Go code. You don't need to explicitly close a dynamic statement, the end is inferred from context.
+
+This approach to isolating dynamic content allows you to more easily and naturally write dynamic content without dealing with a ton of fiddly `{{`double-braces`}}` everywhere.
 
     This is static content outside a dynamic statement.
     
@@ -31,7 +33,17 @@ When executed with a context that contains the property `some_number: 2`, the fo
 	
       If the value of 'some_number' is > 1 then this content is written.
 
-## Using templates
+## Escaping special characters
+
+When you need to use the literal `@` character within a template you must escape it with the `\` character, like so: `user\@example.com`.
+
+By the same token, within a dynamic block the `}` character is significant and it must also be escaped in the same way:
+
+	@if true {
+		Here's a literal closing brace within a block: \}.
+	}
+
+## Executing templates
 
 Templates are compiled and then executed with a runtime and variable context to produce output. Generally this can be accomplished in just a few lines.
 	

@@ -32,10 +32,10 @@ package main
 
 import (
   "os"
-  "io/ioutil"
   "fmt"
   "path"
   "strings"
+  "io/ioutil"
   "encoding/json"
 )
 
