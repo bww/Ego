@@ -1,12 +1,14 @@
 # Ego, a Go-like template language
 
-The Go standard library [template language](https://golang.org/pkg/text/template/) is pretty weird. It's clumsy to work with and its inexplicably quirky pipeline syntax bears almost no resemblance to the language it is implemented in and for. (Just try to index into an array the obvious way and see how that goes for you.)
+The Go standard library [template language](https://golang.org/pkg/text/template/) is pretty weird. Its inexplicably quirky pipeline syntax is clumsy to work with and bears almost no resemblance to the language it is implemented in and for. (Just try to index into an array the obvious way and see how that goes for you.)
 
 **Ego** (Embedded Go) is an alternative template language that endeavors to be compact, expressive and decidedly Go-like. It is inspired by the [Play Framework template language](https://www.playframework.com/documentation/2.5.x/JavaTemplates), which was in turn inspired by [ASP.NET Razor](http://www.asp.net/web-pages/overview/getting-started/introducing-razor-syntax-c).
 
-## Ego is work in progress
+Ego's priorities are to be **familiar**, **concise**, and to have excellent **error reporting**.
 
-Ego is not ready for production. Basic functionality such as expressions, `if` and `for` statements work, however many features are missing and more tests are needed. If you agree that the status quo in Go templates needs an update, your pull requests would be most welcome!
+## Project status
+
+Ego is not ready for production. It currently supports core functionality, however many features are missing and more tests are needed. If you agree that the status quo in Go templates needs an update, your pull requests would be most welcome!
 
 ## Writing templates
 
@@ -173,4 +175,12 @@ The `[]` subscript operator obtains the value at an index when the operand is an
 	a_map["the_key"]
 
 ### `func()`
+
+Functions are invoked as they are in Go.
+
+	len(a_slice)
+
+Also as it is in Go, when a function invocation follows a dereference it is treated as a method invocation.
+
+	val.String()
 
