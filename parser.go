@@ -498,7 +498,7 @@ func (p *parser) parseArithmeticL1() (expression, error) {
  */
 func (p *parser) parseArithmeticL2() (expression, error) {
   
-  left, err := p.parseDeref()
+  left, err := p.parseDeref(nil)
   if err != nil {
     return nil, err
   }
@@ -527,9 +527,9 @@ func (p *parser) parseArithmeticL2() (expression, error) {
 /**
  * Parse a deref expression
  */
-func (p *parser) parseDeref() (expression, error) {
+func (p *parser) parseDeref(prev expression) (expression, error) {
   
-  left, err := p.parseInvoke()
+  left, err := p.parseInvoke(prev)
   if err != nil {
     return nil, err
   }
@@ -547,7 +547,7 @@ func (p *parser) parseDeref() (expression, error) {
   }
   
   p.next() // consume the operator
-  right, err := p.parseDeref()
+  right, err := p.parseDeref(left)
   if err != nil {
     return nil, err
   }
@@ -564,9 +564,9 @@ func (p *parser) parseDeref() (expression, error) {
 /**
  * Parse a function invocation expression
  */
-func (p *parser) parseInvoke() (expression, error) {
+func (p *parser) parseInvoke(left expression) (expression, error) {
   
-  left, err := p.parseIndex()
+  right, err := p.parseIndex()
   if err != nil {
     return nil, err
   }
@@ -580,7 +580,7 @@ func (p *parser) parseInvoke() (expression, error) {
     case tokenLParen:
       break // valid token
     default:
-      return left, nil
+      return right, nil
   }
   
   p.next() // consume the '('
@@ -594,7 +594,11 @@ func (p *parser) parseInvoke() (expression, error) {
     return nil, err
   }
   
-  return &invokeNode{node{encompass(op.span, left.src(), t.span), &op}, left, params}, nil
+  if left != nil {
+    return &invokeNode{node{encompass(op.span, left.src(), right.src(), t.span), &op}, left, right, params}, nil
+  }else{
+    return &invokeNode{node{encompass(op.span, right.src(), t.span), &op}, nil, right, params}, nil
+  }
 }
 
 /**

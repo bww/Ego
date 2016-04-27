@@ -64,7 +64,7 @@ type context struct {
  * Create a new context
  */
 func newContext(f interface{}) *context {
-  return &context{[]interface{}{f}}
+  return &context{[]interface{}{stdlib, f}}
 }
 
 /**
@@ -94,10 +94,27 @@ func (c *context) pop() *context {
  * Obtain a value
  */
 func (c *context) get(s span, n string) (interface{}, error) {
-  if l := len(c.stack); l > 0 {
-    return derefProp(s, c.stack[l-1], n)
+  return c.sget(s, n, c.stack)
+}
+
+/**
+ * Obtain a value
+ */
+func (c *context) sget(s span, n string, k []interface{}) (interface{}, error) {
+  l := len(k)
+  if l < 1 {
+    return nil, nil
+  }
+  
+  v, err := derefProp(s, k[l-1], n)
+  if err != nil {
+    return nil, err
+  }
+  
+  if v == nil && l > 1 {
+    return c.sget(s, n, k[:l-1])
   }else{
-    return nil, fmt.Errorf("No context")
+    return v, nil
   }
 }
 
@@ -712,23 +729,111 @@ func (n *indexNode) execMap(runtime *Runtime, context *context, val reflect.Valu
  */
 type invokeNode struct {
   node
-  left    expression
-  params  []expression
+  left, right expression
+  params      []expression
 }
 
 /**
  * Execute
  */
 func (n *invokeNode) exec(runtime *Runtime, context *context) (interface{}, error) {
+  var liv interface{}
+  var err error
   
-  val, err := n.left.exec(runtime, context)
-  if err != nil {
-    return nil, err
+  var name string
+  switch v := n.right.(type) {
+    case *identNode:
+      name = v.ident
+    default:
+      return nil, runtimeErrorf(n.span, "Invalid node type for function call: %T", v)
   }
   
-  fmt.Println("LEFT", val)
+  if n.left != nil {
+    liv, err = n.left.exec(runtime, context)
+    if err != nil {
+      return nil, err
+    }
+  }
   
-  return nil, runtimeErrorf(n.span, "Not implemented")
+  var f reflect.Value
+  if liv != nil {
+    lrv := reflect.ValueOf(liv)
+    f = lrv.MethodByName(name)
+    if !f.IsValid() {
+      return nil, runtimeErrorf(n.span, "No such method '%v' for type %v or method is not exported", name, lrv.Type())
+    }
+  }else{
+    liv, err = context.get(n.span, name)
+    if err != nil {
+      return nil, err
+    }else if liv == nil {
+      return nil, runtimeErrorf(n.span, "No such function '%v'", name)
+    }
+    f = reflect.ValueOf(liv)
+    if f.Kind() != reflect.Func {
+      return nil, runtimeErrorf(n.span, "Variable '%v' is not a function", name)
+    }
+  }
+  
+  ft := f.Type()
+  lp := len(n.params)
+  
+  cin := ft.NumIn()
+  if cin != lp {
+    return nil, runtimeErrorf(n.span, "Function %v takes %v arguments but is given %v", name, cin, lp)
+  }
+  cout := ft.NumOut()
+  if cout > 2 {
+    return nil, runtimeErrorf(n.span, "Function %v returns %v values (expected: 0, 1 or 2)", name, cout)
+  }
+  
+  args := make([]reflect.Value, lp)
+  for i, e := range n.params {
+    v, err := e.exec(runtime, context)
+    if err != nil {
+      return nil, err
+    }
+    var a reflect.Value
+    if v == nil { // we need a typed zero value if the value is nil
+      a = reflect.Zero(ft.In(i))
+    }else{
+      a = reflect.ValueOf(v)
+    }
+    if !a.IsValid() {
+      return nil, runtimeErrorf(e.src(), "Invalid parameter")
+    }
+    args[i] = a
+  }
+  
+  // for i := 0; i < cin; i++ {
+  //   pt := ft.In(i)
+  //   if !pt.AssignableTo(args[i].Type()) {
+  //     return nil, runtimeErrorf(n.params[i].src(), "Incompatible parameter")
+  //   }
+  // }
+  
+  r := f.Call(args)
+  if r == nil {
+    return nil, runtimeErrorf(n.span, "Function %v did not return a value", name)
+  }else if l := len(r); l > 2 {
+    return nil, runtimeErrorf(n.span, "Function %v must return either (void), (interface{}) or (interface{}, error)", name)
+  }else if l == 0 {
+    return nil, nil
+  }else if l == 1 {
+    return r[0].Interface(), nil
+  }else if l == 2 {
+    r0 := r[0].Interface()
+    r1 := r[1].Interface()
+    if r1 == nil {
+      return r0, nil
+    }else if e, ok := r1.(error); ok {
+      return r0, e
+    }else{
+      return nil, runtimeErrorf(n.span, "Function %v must return either (void), (interface{}) or (interface{}, error)", name)
+    }
+  }
+  
+  return nil, nil
 }
 
 /**
@@ -884,6 +989,15 @@ func derefMember(s span, val reflect.Value, property string) (interface{}, error
   
   v = val.MethodByName(property)
   if v.IsValid() {
+    t := v.Type()
+    
+    if n := t.NumIn(); n != 0 {
+      return nil, runtimeErrorf(s, "Method %v of %v takes %v arguments (expected: 0)", v, displayType(val), n)
+    }
+    if n := t.NumOut(); n < 1 || n > 2 {
+      return nil, runtimeErrorf(s, "Method %v of %v returns %v values (expected: 1 or 2)", v, displayType(val), n)
+    }
+    
     r := v.Call(make([]reflect.Value,0))
     if r == nil {
       return nil, runtimeErrorf(s, "Method %v of %v did not return a value", v, displayType(val))
@@ -904,6 +1018,7 @@ func derefMember(s span, val reflect.Value, property string) (interface{}, error
           return nil, runtimeErrorf(s, "Method %v of %v must return either (interface{}) or (interface{}, error)", v, displayType(val))
       }
     }
+    
   }
   
   v = val.FieldByName(property)
@@ -911,7 +1026,7 @@ func derefMember(s span, val reflect.Value, property string) (interface{}, error
     return v.Interface(), nil
   }
   
-  return nil, runtimeErrorf(s, "No suitable method or field '%v' of %v", property, displayType(val))
+  return nil, nil
 }
 
 /**

@@ -31,6 +31,7 @@
 package ego
 
 import (
+  "fmt"
   "testing"
 )
 
@@ -92,11 +93,64 @@ func TestDerefAndIndex(t *testing.T) {
   
 }
 
+type funcCallContext struct {}
+
+func (f funcCallContext) Foo(a, b, c string) string {
+  return a +", "+ b +", "+ c
+}
+
+func (f funcCallContext) Bar(a, b, c float64) string {
+  return fmt.Sprintf("Sum: %v", a + b + c)
+}
+
+func (f funcCallContext) Car(a, b, c *string) (string, error) {
+  return "This will produce an error and abort", fmt.Errorf("Error from the function!")
+}
+
+func (f funcCallContext) Self() funcCallContext {
+  return f
+}
+
 func TestFuncCall(t *testing.T) {
   
-  compileAndRun(t, true, true, map[string]interface{}{"a": []string{"first", "second"}},
-    `@(a.foo(a, b, c)), @(a.bar(1, 2, 3))`,
-    `first, second`,
+  compileAndRun(t, true, true, map[string]interface{}{"a": funcCallContext{}, "b": []string{"one", "two", "three"}, "c": map[string]interface{}{"x": 1, "y": 2, "z": 3}},
+    `@(len(b)), @(len("Hello")), @(len(c))`,
+    `3, 5, 3`,
+  )
+  
+  compileAndRun(t, true, false, map[string]interface{}{"a": funcCallContext{}, "len": "I'm not a function..."},
+    `@(len("Hello"))`,
+    ``,
+  )
+  
+  compileAndRun(t, true, true, map[string]interface{}{"a": funcCallContext{}},
+    `@(a.Foo("a", "b", "c"))`,
+    `a, b, c`,
+  )
+  
+  compileAndRun(t, true, true, map[string]interface{}{"a": funcCallContext{}},
+    `@(len(a.Foo("a", "b", "c")))`,
+    `7`,
+  )
+  
+  compileAndRun(t, true, true, map[string]interface{}{"a": funcCallContext{}},
+    `@(a.Bar(1, 2, 3))`,
+    `Sum: 6`,
+  )
+  
+  compileAndRun(t, true, true, map[string]interface{}{"a": funcCallContext{}},
+    `@(a.Self().Bar(1, 2, 3))`,
+    `Sum: 6`,
+  )
+  
+  compileAndRun(t, true, false, map[string]interface{}{"a": funcCallContext{}},
+    `@(a.Zap(1, 2, 3))`,
+    ``,
+  )
+  
+  compileAndRun(t, true, false, map[string]interface{}{"a": funcCallContext{}},
+    `@(a.Car(nil, nil, nil))`,
+    ``,
   )
   
 }
