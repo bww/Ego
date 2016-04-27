@@ -47,7 +47,7 @@ By the same token, within a dynamic block the `}` character is significant and i
 
 # Executing templates
 
-Generally, you will execute your templates within a Go application. As a convenience, a standalone compiler is also included e.g., for testing or executing examples.
+Generally, you will execute your templates within a Go application. As a convenience, a standalone compiler is also included for testing.
 
 ## Executing templates with `egoc`
 
