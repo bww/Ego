@@ -35,7 +35,7 @@ import (
   "fmt"
   "flag"
   "path"
-  "ego"
+  "github.com/bww/ego"
 )
 
 var CMD string
