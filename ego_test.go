@@ -1,5 +1,5 @@
 // 
-// Copyright (c) 2014 Brian William Wolter, All rights reserved.
+// Copyright (c) 2014-2016 Brian William Wolter, All rights reserved.
 // Ego - an embedded Go parser / compiler
 // 
 // Redistribution and use in source and binary forms, with or without modification,
