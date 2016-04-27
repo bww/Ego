@@ -10,7 +10,7 @@ Ego's priorities are to be **familiar**, **concise**, and to have excellent **er
 
 Ego is not ready for production. It currently supports core functionality, however many features are missing and more tests are needed. If you agree that the status quo in Go templates needs an update, your pull requests would be most welcome!
 
-## Writing templates
+# Writing templates
 
 Ego sources, like most template languages, are interpreted as static content in which is interspersed dynamic statements that are evaluated and output conditionally.
 
@@ -45,7 +45,23 @@ By the same token, within a dynamic block the `}` character is significant and i
 		Here's a literal closing brace within a block: \}.
 	}
 
-## Executing templates
+# Executing templates
+
+Generally, you will execute your templates within a Go application. As a convenience, a standalone compiler is also included e.g., for testing or executing examples.
+
+## Executing templates with `egoc`
+
+The subpackge `egoc` includes an Ego compiler that you can use to execute templates from the command line.
+
+For example, the following command will load JSON data from the file `data.json` and use it as the variable context to execute the templates `a.ego` and `b.ego`. Each template specified on the command line is executed in turn and output is written to standard output.
+
+	$ egoc -context data.json a.ego b.ego
+
+You can use `egoc` to try out the examples in the `examples` directory. Examples are organized as two separate files with the same base name, one formatted as JSON which contains the context data, and an Ego template.
+
+	$ egoc -context basic.json basic.ego
+
+## Executing templates in Go
 
 Templates are compiled and then executed with a runtime and variable context to produce output. Generally this can be accomplished in just a few lines.
 	

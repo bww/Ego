@@ -1,0 +1,23 @@
+
+This is static content outside a dynamic statement. It is written out in
+the executed template unchanged.
+
+Here's a number: @(some_number)
+@if some_number > 0 {
+  If the variable 'some_number' in our context is greater than one then
+  this content is written.
+  @if some_number > 5 {
+    Then this one...
+  } else {
+    Nope...
+  }
+}else{
+  Otherwise this content is written.
+}
+
+Here's some more numbers:
+@for i, e := range some_array {
+  @(i) -> @(e)
+}
+
+Ok, that's it!
