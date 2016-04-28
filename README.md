@@ -4,11 +4,11 @@ The Go standard library [template language](https://golang.org/pkg/text/template
 
 **Ego** (Embedded Go) is an alternative template language that endeavors to be compact, expressive and decidedly Go-like. It is inspired by the [Play Framework template language](https://www.playframework.com/documentation/2.5.x/JavaTemplates), which was in turn inspired by [ASP.NET Razor](http://www.asp.net/web-pages/overview/getting-started/introducing-razor-syntax-c).
 
-Ego's priorities are to be **familiar**, **concise**, and to have excellent **error reporting**.
+Ego's priorities are to be **familiar**, **expressive**, and to have first-rate **error reporting**. After those are complete **performance** will be emphasized.
 
 ## Project status
 
-Ego is not ready for production. It currently supports core functionality, however many features are missing and more tests are needed. If you agree that the status quo in Go templates needs an update, your pull requests would be most welcome!
+Ego is not ready for production. It currently supports core functionality, however many features are missing and more tests are needed. If you think this is an interesting direction for Go templates, your pull requests are most welcome!
 
 # Writing templates
 
