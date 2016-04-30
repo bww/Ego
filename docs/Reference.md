@@ -8,13 +8,13 @@ The following dynamic constructs are currently supported.
 
 Your standard `if` statement. Unlike Go, Ego does not support the `assignment; test` construct.
 
-  @if expr_a {
-    // evaluated if 'expr_a' is true
-  }else if expr_b {
-    // evaluated if 'expr_b' is true
-  }else{
-    // evaluated if none of the above are true
-  }
+	 @if expr_a {
+	   // evaluated if 'expr_a' is true
+	 }else if expr_b {
+	   // evaluated if 'expr_b' is true
+	 }else{
+	   // evaluated if none of the above are true
+	 }
 
 ### `for`
 
@@ -22,32 +22,32 @@ Your standard `for` statement. Unlike Go, Ego only supports `range` iteration. Y
 
 When ranging a map, you can declare one or two variables. If one variable is declared it contains the entry value. If two variables are declared the first is the entry key and the second is the entry value.
 
-  @for k, v := range a_map {
-    Here's a map entry: @(k) -> @(v)
-  }
+	 @for k, v := range a_map {
+	   Here's a map entry: @(k) -> @(v)
+	 }
 
 When ranging an array or slice you can also declare one or two variables. If one variable is declared it contains the element value. If two variables are declared the first is the element index and the second is the element value.
 
-  @for i, v := range a_slice {
-    Here's a slice element at index @(i): @(v)
-  }
+	 @for i, v := range a_slice {
+	   Here's a slice element at index @(i): @(v)
+	 }
   
 The `break` and `continue` keywords can be used to do the usual thing.
 
-  @for v := range a_slice {
-    @if v > 100 {
-      @(break)
-    }else{
-      The value is still less than 100...
-    }
-  }
+	 @for v := range a_slice {
+	   @if v > 100 {
+	     @(break)
+	   }else{
+	     The value is still less than 100...
+	   }
+	 }
 
 
 ### `()`
 
 Declaring dynamic content consisting of an expression wrapped in parentheses results in that expression being evaluated and its result interpolated in the output document.
 
-  Is 1 + 2 less than 3 + 4? Let's see: @(1 + 2 < 3 + 4).
+	 Is 1 + 2 less than 3 + 4? Let's see: @(1 + 2 < 3 + 4).
 
 
 ## Expressions
@@ -56,27 +56,27 @@ Declaring dynamic content consisting of an expression wrapped in parentheses res
 
 Identifiers have the same rules as Go. A valid identifier is a letter followed by zero or more letters or digits. An underscore is considered to be a letter.
 
-  a
-  ThisIsALongIdentifier
-  _a9
+	 a
+	 ThisIsALongIdentifier
+	 _a9
 
 ### `&&`, `||`, `!`
 
 The standard logical *and*, *or*, and *not* operators are supported.
 
-  1 < 2 && 2 < 3
-  1 > 2 || 2 < 3
-  !(1 > 2)
+	 1 < 2 && 2 < 3
+	 1 > 2 || 2 < 3
+	 !(1 > 2)
 
 ### `<`, `<=`, `==`, `>=`, `>`
 
 The standard relational operators are supported. Values are comparable if their types are comparable in Go. Unlike Go, Ego will automatically convert numeric types so that they can be compared.
 
-  1 < 2
-  1 <= 3
-  1 == 1
-  5 >= 5
-  5 > 4
+	 1 < 2
+	 1 <= 3
+	 1 == 1
+	 5 >= 5
+	 5 > 4
 
 ### `*`, `/`, `%`, `+`, `-`
 
@@ -84,8 +84,8 @@ The standard arithmetic operators are supported. Only numeric types can have ari
 
 The order of operations is: `*`, `/`, `%`, `+`, `-`
 
-  1 + 2 - 3 * 4 / 5
-  2 % 10
+	 1 + 2 - 3 * 4 / 5
+	 2 % 10
 
 ### `.`
 
@@ -99,16 +99,16 @@ The `.` operator dereferences a property. This operator can be use more liberall
 
 The `[]` subscript operator obtains the value at an index when the operand is an array or slice and obtains the value of a key when the operand is a map.
 
-  a_slice[5]
-  a_map["the_key"]
+	 a_slice[5]
+	 a_map["the_key"]
 
 ### `func()`
 
 Functions are invoked as they are in Go.
 
-  len(a_slice)
+	 len(a_slice)
 
 Also as it is in Go, when a function invocation follows a dereference it is treated as a method invocation.
 
-  val.String()
+	 val.String()
 
