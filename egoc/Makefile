@@ -18,9 +18,8 @@ ARCHIVE_NAME=$(PRODUCT_NAME).tar.gz
 ARCHIVE=$(TARGET_DIR)/$(ARCHIVE_NAME)
 
 # source paths
-SRC		  = $(shell find . -name \*.go -print)
-LIB		  = $(shell find .. -name \*.go -print)
-GOPATH := $(shell cd ../../.. && pwd):$(GOPATH)
+SRC	= $(shell find . -name \*.go -print)
+LIB	= $(shell find .. -name \*.go -print)
 
 .PHONY: all deps build clean
 

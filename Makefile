@@ -1,10 +1,9 @@
 
-SOURCES	= $(shell find . -name \*.go -print)
-GOPATH := $(shell cd ../.. && pwd):$(GOPATH)
+SRC	= $(shell find . -name \*.go -print)
 
 export PROJECT = $(PWD)
 
-all: deps $(SOURCES)
+all: deps $(SRC)
 	go test -test.v
 
 deps:
