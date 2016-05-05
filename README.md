@@ -86,6 +86,8 @@ Templates are compiled and then executed with a runtime and variable context to 
 	err = t.Exec(r, c)
 	if err != nil { /* ... */ }
 
+If a template will be used repeatedly it might make sense to keep the compiled template (`t` in the source above) in memory so that the same source does not need to be repeatedly parsed.
+
 # Documentation
 
 Further documentation is available in `docs`.
