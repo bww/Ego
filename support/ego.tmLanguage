@@ -124,7 +124,13 @@
     </dict>
     <dict>
       <key>match</key>
-      <string>\b(break|case|chan|const|continue|default|defer|else|fallthrough|for|func|go|goto|if|import|interface|map|package|range|return|select|struct|switch|type|var)\b</string>
+      <string>\b(if|for)\b</string>
+      <key>name</key>
+      <string>keyword.meta.go</string>
+    </dict>
+    <dict>
+      <key>match</key>
+      <string>\b(break|case|chan|const|continue|default|defer|else|fallthrough|func|go|goto|import|interface|map|package|range|return|select|struct|switch|type|var)\b</string>
       <key>name</key>
       <string>keyword.other.go</string>
     </dict>
