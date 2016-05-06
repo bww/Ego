@@ -10,6 +10,13 @@ Ego's priorities are to be **familiar**, **expressive**, and to have first-rate 
 
 Ego is not ready for production. It currently supports core functionality, however many features are missing and more tests are needed. If you think this is an interesting direction for Go templates, your pull requests are most welcome!
 
+## Related projects
+
+There is at least one similar project that I'm aware of.
+
+* [GoRazor](https://github.com/sipin/gorazor) – a Razor-like translator program which compiles template files into Go sources.
+
+
 # Writing templates
 
 Ego sources, like most template languages, are interpreted as static content in which is interspersed dynamic statements that are evaluated and output conditionally.
