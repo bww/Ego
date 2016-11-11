@@ -112,3 +112,5 @@ Also as it is in Go, when a function invocation follows a dereference it is trea
 
 	 val.String()
 
+The manner in which underlying Go functions are mapped to Ego is a bit more nuanced, however. There are a number of rules governing how  different return values are handled, all aimed at just doing the right thing.
+

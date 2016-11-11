@@ -32,6 +32,7 @@ package ego
 
 import (
   "io"
+  "os"
   "fmt"
   "reflect"
 )
@@ -123,8 +124,39 @@ func (c *context) sget(s span, n string, k []interface{}) (interface{}, error) {
  */
 type Runtime struct {
   Stdout    io.Writer
+  attrs     map[string]interface{}
 }
 
+/**
+ * Get an attribute.
+ */
+func (r *Runtime) Attr(k string) interface{} {
+  if r.attrs != nil {
+    return r.attrs[k]
+  }else{
+    return nil
+  }
+}
+
+/**
+ * Set an attribute.
+ */
+func (r *Runtime) SetAttr(k string, v interface{}) {
+  if r.attrs == nil {
+    r.attrs = make(map[string]interface{})
+  }
+  r.attrs[k] = v
+}
+
+/**
+ * Execution state
+ */
+type State struct {
+  Runtime   *Runtime
+  Context   interface{}
+}
+
+var typeOfState   = reflect.TypeOf(&State{})
 var typeOfRuntime = reflect.TypeOf(&Runtime{})
 var typeOfError   = reflect.TypeOf((*error)(nil)).Elem()
 
@@ -169,8 +201,16 @@ type Program struct {
 /**
  * Execute a program
  */
-func (n *Program) Exec(runtime *Runtime, context interface{}) error {
-  return n.exec(runtime, newContext(context))
+func (n *Program) Exec(rt *Runtime, cxt interface{}) error {
+  if rt.Stdout == nil {
+    rt.Stdout = os.Stdout
+  }
+  switch v := cxt.(type) {
+    case *context:
+      return n.exec(rt, v)
+    default:
+      return n.exec(rt, newContext(v))
+  }
 }
 
 /**
@@ -796,10 +836,10 @@ func (n *invokeNode) exec(runtime *Runtime, context *context) (interface{}, erro
     if cin - extra != lp /* allow for runtime parameter */ {
       return nil, runtimeErrorf(n.span, "Function %v takes %v arguments but is given %v", name, cin, lp)
     }
-    if ft.In(in) != typeOfRuntime {
-      return nil, runtimeErrorf(n.span, "Function %v takes %v arguments but is given %v; first native argument must receive *Runtime", name, cin - extra, lp)
+    if ft.In(in) != typeOfState {
+      return nil, runtimeErrorf(n.span, "Function %v takes %v arguments but is given %v; first native argument must receive %v", name, cin - extra, lp, typeOfState)
     }
-    args = append(args, reflect.ValueOf(runtime))
+    args = append(args, reflect.ValueOf(&State{runtime, context}))
     in++
   }
   
@@ -989,13 +1029,18 @@ func derefProp(s span, context interface{}, ident string) (interface{}, error) {
  * Execute
  */
 func derefMap(s span, val reflect.Value, property string) (interface{}, error) {
-  key := reflect.ValueOf(property)
   
+  key := reflect.ValueOf(property)
   if !key.Type().AssignableTo(val.Type().Key()) {
     return nil, runtimeErrorf(s, "Expression result is not assignable to map key type: %v != %v", key.Type(), val.Type().Key())
   }
   
-  return val.MapIndex(key).Interface(), nil
+  res := val.MapIndex(key)
+  if !res.IsValid() {
+    return nil, nil // not found
+  }
+  
+  return res.Interface(), nil
 }
 
 /**

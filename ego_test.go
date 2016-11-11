@@ -106,7 +106,7 @@ func compileAndRun(t *testing.T, compile, exec bool, context interface{}, source
   output  := &bytes.Buffer{}
   scanner := newScanner(source)
   parser  := newParser(scanner)
-  runtime := &Runtime{output}
+  runtime := &Runtime{Stdout:output}
   
   program, err := parser.parse()
   if compile {

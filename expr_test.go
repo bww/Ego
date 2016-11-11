@@ -111,15 +111,15 @@ func (f funcCallContext) Self() funcCallContext {
   return f
 }
 
-func (f funcCallContext) Context(runtime *Runtime, a, b, c string) string {
-  return fmt.Sprintf("Runtime: %T %v %v %v", runtime, a, b, c)
+func (f funcCallContext) Context(state *State, a, b, c string) string {
+  return fmt.Sprintf("State: %T %v %v %v", state, a, b, c)
 }
 
-func (f funcCallContext) Invalid(runtime *Runtime, wrong int, a, b string) string {
+func (f funcCallContext) Invalid(state *State, wrong int, a, b string) string {
   return "" // won't get here
 }
 
-func (f funcCallContext) Error(runtime *Runtime, fail bool) error {
+func (f funcCallContext) Error(state *State, fail bool) error {
   if fail {
     return fmt.Errorf("Error from the function!")
   }else{
@@ -171,11 +171,16 @@ func TestFuncCall(t *testing.T) {
   
   compileAndRun(t, true, true, map[string]interface{}{"a": funcCallContext{}},
     `@(a.Context("A", "B", "C"))`,
-    `Runtime: *ego.Runtime A B C`,
+    `State: *ego.State A B C`,
   )
   
   compileAndRun(t, true, false, map[string]interface{}{"a": funcCallContext{}},
     `@(a.Invalid("A", "B", "C"))`,
+    ``,
+  )
+  
+  compileAndRun(t, true, false, map[string]interface{}{"a": funcCallContext{}},
+    `@(a.Self("A"))`,
     ``,
   )
   
