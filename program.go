@@ -126,6 +126,7 @@ type Runtime struct {
 }
 
 var typeOfRuntime = reflect.TypeOf(&Runtime{})
+var typeOfError   = reflect.TypeOf((*error)(nil)).Elem()
 
 /**
  * Executable
@@ -392,6 +393,9 @@ func (n *exprNode) exec(runtime *Runtime, context *context) error {
   res, err := n.expr.exec(runtime, context)
   if err != nil {
     return err
+  }
+  if res == nil {
+    return nil // no output on nil
   }
   
   var out string
@@ -821,13 +825,6 @@ func (n *invokeNode) exec(runtime *Runtime, context *context) (interface{}, erro
     in++
   }
   
-  // for i := 0; i < cin; i++ {
-  //   pt := ft.In(i)
-  //   if !pt.AssignableTo(args[i].Type()) {
-  //     return nil, runtimeErrorf(n.params[i].src(), "Incompatible parameter")
-  //   }
-  // }
-  
   r := f.Call(args)
   if r == nil {
     return nil, runtimeErrorf(n.span, "Function %v did not return a value", name)
@@ -836,7 +833,15 @@ func (n *invokeNode) exec(runtime *Runtime, context *context) (interface{}, erro
   }else if l == 0 {
     return nil, nil
   }else if l == 1 {
-    return r[0].Interface(), nil
+    if ft.Out(0) == typeOfError {
+      if !r[0].IsNil() {
+        return nil, r[0].Interface().(error)
+      }else{
+        return nil, nil
+      }
+    }else{
+      return r[0].Interface(), nil
+    }
   }else if l == 2 {
     r0 := r[0].Interface()
     r1 := r[1].Interface()

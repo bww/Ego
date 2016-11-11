@@ -119,6 +119,14 @@ func (f funcCallContext) Invalid(runtime *Runtime, wrong int, a, b string) strin
   return "" // won't get here
 }
 
+func (f funcCallContext) Error(runtime *Runtime, fail bool) error {
+  if fail {
+    return fmt.Errorf("Error from the function!")
+  }else{
+    return nil
+  }
+}
+
 func TestFuncCall(t *testing.T) {
   
   compileAndRun(t, true, true, map[string]interface{}{"a": funcCallContext{}, "b": []string{"one", "two", "three"}, "c": map[string]interface{}{"x": 1, "y": 2, "z": 3}},
@@ -168,6 +176,16 @@ func TestFuncCall(t *testing.T) {
   
   compileAndRun(t, true, false, map[string]interface{}{"a": funcCallContext{}},
     `@(a.Invalid("A", "B", "C"))`,
+    ``,
+  )
+  
+  compileAndRun(t, true, false, map[string]interface{}{"a": funcCallContext{}},
+    `@(a.Error(true))`,
+    ``,
+  )
+  
+  compileAndRun(t, true, true, map[string]interface{}{"a": funcCallContext{}},
+    `@(a.Error(false))`,
     ``,
   )
   
