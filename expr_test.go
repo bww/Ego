@@ -111,6 +111,14 @@ func (f funcCallContext) Self() funcCallContext {
   return f
 }
 
+func (f funcCallContext) Context(runtime *Runtime, a, b, c string) string {
+  return fmt.Sprintf("Runtime: %T %v %v %v", runtime, a, b, c)
+}
+
+func (f funcCallContext) Invalid(runtime *Runtime, wrong int, a, b string) string {
+  return "" // won't get here
+}
+
 func TestFuncCall(t *testing.T) {
   
   compileAndRun(t, true, true, map[string]interface{}{"a": funcCallContext{}, "b": []string{"one", "two", "three"}, "c": map[string]interface{}{"x": 1, "y": 2, "z": 3}},
@@ -150,6 +158,16 @@ func TestFuncCall(t *testing.T) {
   
   compileAndRun(t, true, false, map[string]interface{}{"a": funcCallContext{}},
     `@(a.Car(nil, nil, nil))`,
+    ``,
+  )
+  
+  compileAndRun(t, true, true, map[string]interface{}{"a": funcCallContext{}},
+    `@(a.Context("A", "B", "C"))`,
+    `Runtime: *ego.Runtime A B C`,
+  )
+  
+  compileAndRun(t, true, false, map[string]interface{}{"a": funcCallContext{}},
+    `@(a.Invalid("A", "B", "C"))`,
     ``,
   )
   

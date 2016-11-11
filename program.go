@@ -125,6 +125,8 @@ type Runtime struct {
   Stdout    io.Writer
 }
 
+var typeOfRuntime = reflect.TypeOf(&Runtime{})
+
 /**
  * Executable
  */
@@ -778,31 +780,45 @@ func (n *invokeNode) exec(runtime *Runtime, context *context) (interface{}, erro
   ft := f.Type()
   lp := len(n.params)
   
-  cin := ft.NumIn()
-  if cin != lp {
-    return nil, runtimeErrorf(n.span, "Function %v takes %v arguments but is given %v", name, cin, lp)
-  }
   cout := ft.NumOut()
   if cout > 2 {
     return nil, runtimeErrorf(n.span, "Function %v returns %v values (expected: 0, 1 or 2)", name, cout)
   }
   
-  args := make([]reflect.Value, lp)
-  for i, e := range n.params {
+  in, extra := 0, 1
+  args := make([]reflect.Value, 0)
+  cin := ft.NumIn()
+  if cin != lp {
+    if cin - extra != lp /* allow for runtime parameter */ {
+      return nil, runtimeErrorf(n.span, "Function %v takes %v arguments but is given %v", name, cin, lp)
+    }
+    if ft.In(in) != typeOfRuntime {
+      return nil, runtimeErrorf(n.span, "Function %v takes %v arguments but is given %v; first native argument must receive *Runtime", name, cin - extra, lp)
+    }
+    args = append(args, reflect.ValueOf(runtime))
+    in++
+  }
+  
+  for _, e := range n.params {
     v, err := e.exec(runtime, context)
     if err != nil {
       return nil, err
     }
+    t := ft.In(in)
     var a reflect.Value
     if v == nil { // we need a typed zero value if the value is nil
-      a = reflect.Zero(ft.In(i))
+      a = reflect.Zero(t)
     }else{
       a = reflect.ValueOf(v)
     }
     if !a.IsValid() {
       return nil, runtimeErrorf(e.src(), "Invalid parameter")
     }
-    args[i] = a
+    if !a.Type().AssignableTo(t) {
+      return nil, runtimeErrorf(e.src(), "Cannot use %v as %v", displayType(a), t.String())
+    }
+    args = append(args, a)
+    in++
   }
   
   // for i := 0; i < cin; i++ {
@@ -1023,6 +1039,9 @@ func derefMember(s span, val reflect.Value, property string) (interface{}, error
   
   v = val.FieldByName(property)
   if v.IsValid() {
+    if !v.CanInterface() {
+      return nil, runtimeErrorf(s, "Cannot access %v of %v", property, displayType(val))
+    }
     return v.Interface(), nil
   }
   
