@@ -277,7 +277,6 @@ type metaNode struct {
  * Execute
  */
 func (n *metaNode) exec(runtime *Runtime, context *context) error {
-  fmt.Println("exec:meta")
   return n.child.exec(runtime, context)
 }
 
@@ -348,7 +347,7 @@ func (n *forNode) exec(runtime *Runtime, context *context) error {
     case reflect.Map:
       return n.execMap(runtime, context, deref)
     default:
-      return runtimeErrorf(n.span, "Expression result is not iterable: %v", displayType(deref))
+      return runtimeErrorf(n.expr.src(), "Expression result is not iterable: %v", displayType(deref))
   }
   
 }

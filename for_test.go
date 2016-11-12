@@ -59,6 +59,16 @@ func TestFor(t *testing.T) {
     ` A  A  A  A  A  A  A  A  A  A `,
   )
   
+  compileAndRun(t, true, true, map[string]interface{}{"a": []int(nil)},
+    `@for _, e := range a { A }`,
+    ``,
+  )
+  
+  compileAndRun(t, true, true, map[string]interface{}{"a": []int(nil)},
+    `@for _, e := range nil { A }`,
+    ``,
+  )
+  
   // this one is hard to test since the keys are not necessarily iterated in any particular order
   // compileAndRun(t, true, true, map[string]interface{}{"a": map[string]int{"a": 1, "b": 2, "c": 3, "d": 4}},
   //   `@for k, v := range a { @(k) = @(v) }`,

@@ -282,7 +282,7 @@ func (p *parser) parseFor(t token) (executable, error) {
     return nil, err
   }
   
-  lspan := []span{t.span}
+  lspan := []span{}
   for _, e := range vars {
     lspan = append(lspan, e.src())
   }
@@ -290,6 +290,8 @@ func (p *parser) parseFor(t token) (executable, error) {
   if len(vars) < 1 || len(vars) > 2 {
     return nil, &parserError{fmt.Sprintf("Incorrect variable count: %d", len(vars)), encompass(lspan...), nil}
   }
+  
+  lspan = append(lspan, t.span)
   
   t, err = p.nextAssert(tokenAssignSpecial)
   if err != nil {
